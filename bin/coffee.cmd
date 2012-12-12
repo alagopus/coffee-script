@@ -2,6 +2,5 @@
 setlocal
 set TOP=%~dp0\..
 IF NOT EXIST "%TOP%\lib\coffee-script" set TOP=%TOP%\packages\coffee-script
-cd %TOP%\lib\coffee-script
-node -e "require('./command').run()" %*
+node %TOP%\lib\coffee-script\command-run.js %*
 

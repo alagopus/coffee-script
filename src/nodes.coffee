@@ -1224,8 +1224,8 @@ exports.Code = class Code extends Base
     code  += ' ' + @name if @ctor
     codeEnd = "}"
     if @name and not @ctor
-      code = "(function(){ return function #{@name}"
-      codeEnd = '}})()'
+      code = "(function(){ var #{x=(o.scope.freeVariable 'fn')} = function #{@name}"
+      codeEnd = '}; var ' + @name + ' = null; return ' + x + '})()'
     code  += '(' + params.join(', ') + ') {'
     code  += "\n#{ @body.compileWithDeclarations o }\n#{@tab}" unless @body.isEmpty()
     code  += codeEnd 

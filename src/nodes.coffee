@@ -1224,9 +1224,9 @@ exports.Code = class Code extends Base
     code  += ' ' + @name if @ctor
     codeEnd = "}"
     if @name and not @ctor
-      good = (text) -> ("_" + (Code.no = 1 + (Code.no ? 0)) + text).replace(/\W/g, "_");
-      code = "(function(){ var #{x=(o.scope.freeVariable 'fn')} = function #{good @name}"
-      codeEnd = '}; var ' + good(@name) + ' = null; return ' + x + '})()'
+      noname = ("_" + (Code.no = 1 + (Code.no ? 0)) + @name).replace(/\W/g, "_");
+      code = "(function(){ var #{x=(o.scope.freeVariable 'fn')} = function #{noname}"
+      codeEnd = '}; var ' + noname + ' = null; return ' + x + '})()'
     code  += '(' + params.join(', ') + ') {'
     code  += "\n#{ @body.compileWithDeclarations o }\n#{@tab}" unless @body.isEmpty()
     code  += codeEnd 

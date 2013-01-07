@@ -531,7 +531,7 @@ exports.Call = class Call extends Base
   unfoldSoak: (o) ->
     if @soak
       if @variable
-        return ifn if ifn = unfoldSoak o, this, 'variable'
+        return ifn if ifn = globalUnfoldSoak o, this, 'variable'
         [left, rite] = new Value(@variable).cacheReference o
       else
         left = new Literal @superReference o
@@ -556,7 +556,7 @@ exports.Call = class Call extends Base
           call.variable = ifn
         else
           call.variable.base = ifn
-      ifn = unfoldSoak o, call, 'variable'
+      ifn = globalUnfoldSoak o, call, 'variable'
     ifn
 
   # Walk through the objects in the arguments, moving over simple values.
@@ -1015,7 +1015,7 @@ exports.Assign = class Assign extends Base
     @[if @context is 'object' then 'value' else 'variable'].assigns name
 
   unfoldSoak: (o) ->
-    unfoldSoak o, this, 'variable'
+    globalUnfoldSoak o, this, 'variable'
 
   # Compile an assignment, delegating to `compilePatternMatch` or
   # `compileSplice` if appropriate. Keep track of the name of the base object
@@ -1222,9 +1222,13 @@ exports.Code = class Code extends Base
     idt   = o.indent
     code  = 'function'
     code  += ' ' + @name if @ctor
+    codeEnd = "}"
+    if @name and not @ctor
+      code = "(function(){ return function #{@name}"
+      codeEnd = '}})()'
     code  += '(' + params.join(', ') + ') {'
     code  += "\n#{ @body.compileWithDeclarations o }\n#{@tab}" unless @body.isEmpty()
-    code  += '}'
+    code  += codeEnd 
     return @tab + code if @ctor
     if @front or (o.level >= LEVEL_ACCESS) then "(#{code})" else code
 
@@ -1474,7 +1478,7 @@ exports.Op = class Op extends Base
       new Op '!', this
 
   unfoldSoak: (o) ->
-    @operator in ['++', '--', 'delete'] and unfoldSoak o, this, 'first'
+    @operator in ['++', '--', 'delete'] and globalUnfoldSoak o, this, 'first'
 
   generateDo: (exp) ->
     passedParams = []
@@ -1953,7 +1957,7 @@ Closure =
       (node instanceof Call and node.isSuper)
 
 # Unfold a node's child if soak, then tuck the node under created `If`
-unfoldSoak = (o, parent, name) ->
+globalUnfoldSoak = (o, parent, name) ->
   return unless ifn = parent[name].unfoldSoak o
   parent[name] = ifn.body
   ifn.body = new Value parent

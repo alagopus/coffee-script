@@ -1224,9 +1224,10 @@ exports.Code = class Code extends Base
     code  += ' ' + @name if @ctor
     codeEnd = "}"
     if @name and not @ctor
-      noname = ("_" + (Code.no = 1 + (Code.no ? 0)) + @name).replace(/\W/g, "_");
-      code = "(function(){ var #{x=(o.scope.freeVariable 'fn')} = function #{noname}"
-      codeEnd = '}; var ' + noname + ' = null; return ' + x + '})()'
+      mangled = @name.replace(/^\d|\W/g, (t) -> "_" + t.charCodeAt(0).toString(36))
+      mangled = o.scope.freeVariable mangled
+      code = '(function(){ function ' + mangled
+      codeEnd = '}; return ' + mangled + '})()'
     code  += '(' + params.join(', ') + ') {'
     code  += "\n#{ @body.compileWithDeclarations o }\n#{@tab}" unless @body.isEmpty()
     code  += codeEnd 

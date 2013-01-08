@@ -2,6 +2,26 @@
 
 var path = require('path');
 var fs   = require('fs');
-var lib  = path.join(path.dirname(fs.realpathSync(__filename)), '../lib');
 
-require(lib + '/coffee-script/command').run();
+function lib(exe) {
+    var bin  = path.dirname(fs.realpathSync(exe));
+    return one(bin, ['../lib/coffee-script', '../packages/coffee-script/lib/coffee-script']);
+}
+
+function one(bin, alt) {
+    var result = null;
+    alt.forEach(function(dir) {
+        var test = path.join(bin, dir);
+        if (fs.existsSync(test)) {
+            result = test;
+        }
+    });
+    if (result) return result;
+    throw "not found in " + alt
+}
+
+if (require.main == module) {
+    require(lib(__filename) + '/command').run();
+} else {
+    exports.lib = lib;
+}

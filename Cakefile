@@ -1,8 +1,7 @@
-fs            = require 'fs'
-path          = require 'path'
-{extend}      = require './lib/coffee-script/helpers'
+file          = require 'file'
+os            = require 'os'
+{extend}      = require './lib/coffee-script/helpers.js'
 CoffeeScript  = require './lib/coffee-script'
-{spawn, exec} = require 'child_process'
 
 # ANSI Terminal Colors.
 enableColors = no
@@ -32,9 +31,9 @@ sources = [
   'lexer', 'nodes', 'rewriter', 'scope'
 ].map (filename) -> "src/#{filename}.coffee"
 
-# Run a CoffeeScript through our node/coffee interpreter.
+# Run a CoffeeScript through our interpreter.
 run = (args, cb) ->
-  proc =         spawn 'node', ['bin/coffee'].concat(args)
+  proc =         os.system ['narwhal', 'bin/coffee'].concat(args)
   proc.stderr.on 'data', (buffer) -> console.log buffer.toString()
   proc.on        'exit', (status) ->
     process.exit(1) if status != 0
@@ -46,28 +45,8 @@ log = (message, color, explanation) ->
 
 option '-p', '--prefix [DIR]', 'set the installation prefix for `cake install`'
 
-task 'install', 'install CoffeeScript into /usr/local (or --prefix)', (options) ->
-  base = options.prefix or '/usr/local'
-  lib  = "#{base}/lib/coffee-script"
-  bin  = "#{base}/bin"
-  node = "~/.node_libraries/coffee-script"
-  console.log   "Installing CoffeeScript to #{lib}"
-  console.log   "Linking to #{node}"
-  console.log   "Linking 'coffee' to #{bin}/coffee"
-  exec([
-    "mkdir -p #{lib} #{bin}"
-    "cp -rf bin lib LICENSE README package.json src #{lib}"
-    "ln -sfn #{lib}/bin/coffee #{bin}/coffee"
-    "ln -sfn #{lib}/bin/cake #{bin}/cake"
-    "mkdir -p ~/.node_libraries"
-    "ln -sfn #{lib}/lib/coffee-script #{node}"
-  ].join(' && '), (err, stdout, stderr) ->
-    if err then console.log stderr.trim() else log 'done', green
-  )
-
-
 task 'build', 'build the CoffeeScript language from source', build = (cb) ->
-  files = fs.readdirSync 'src'
+  files = file.list 'src'
   files = ('src/' + file for file in files when file.match(/\.coffee$/))
   run ['-c', '-o', 'lib/coffee-script'].concat(files), cb
 
@@ -85,13 +64,7 @@ task 'build:parser', 'rebuild the Jison parser (run build first)', ->
   extend global, require('util')
   require 'jison'
   parser = require('./lib/coffee-script/grammar').parser
-  fs.writeFile 'lib/coffee-script/parser.js', parser.generate()
-
-
-task 'build:ultraviolet', 'build and install the Ultraviolet syntax highlighter', ->
-  exec 'plist2syntax ../coffee-script-tmbundle/Syntaxes/CoffeeScript.tmLanguage', (err) ->
-    throw err if err
-    exec 'sudo mv coffeescript.yaml /usr/local/lib/ruby/gems/1.8/gems/ultraviolet-0.10.2/syntax/coffeescript.syntax'
+  file.write 'lib/coffee-script/parser.js', parser.generate()
 
 
 task 'build:browser', 'rebuild the merged script for inclusion in the browser', ->
@@ -100,7 +73,7 @@ task 'build:browser', 'rebuild the merged script for inclusion in the browser', 
     code += """
       require['./#{name}'] = new function() {
         var exports = this;
-        #{fs.readFileSync "lib/coffee-script/#{name}.js"}
+        #{file.read "lib/coffee-script/#{name}.js"}
       };
     """
   code = """
@@ -120,28 +93,25 @@ task 'build:browser', 'rebuild the merged script for inclusion in the browser', 
   """
   unless process.env.MINIFY is 'false'
     {code} = require('uglify-js').minify code, fromString: true
-  fs.writeFileSync 'extras/coffee-script.js', header + '\n' + code
+  file.write 'extras/coffee-script.js', header + '\n' + code
   console.log "built ... running browser tests:"
   invoke 'test:browser'
 
 
 task 'doc:site', 'watch and continually rebuild the documentation for the website', ->
-  exec 'rake doc', (err) ->
-    throw err if err
+  os.system 'rake doc'
 
 
 task 'doc:source', 'rebuild the internal documentation', ->
-  exec 'docco src/*.coffee && cp -rf docs documentation && rm -r docs', (err) ->
-    throw err if err
+  os.system 'docco src/*.coffee && cp -rf docs documentation && rm -r docs'
 
 
 task 'doc:underscore', 'rebuild the Underscore.coffee documentation page', ->
-  exec 'docco examples/underscore.coffee && cp -rf docs documentation && rm -r docs', (err) ->
-    throw err if err
+  os.system 'docco examples/underscore.coffee && cp -rf docs documentation && rm -r docs'
 
 task 'bench', 'quick benchmark of compilation time', ->
   {Rewriter} = require './lib/coffee-script/rewriter'
-  co     = sources.map((name) -> fs.readFileSync name).join '\n'
+  co     = sources.map((name) -> file.read name).join '\n'
   fmt    = (ms) -> " #{bold}#{ "   #{ms}".slice -4 }#{reset} ms"
   total  = 0
   now    = Date.now()
@@ -157,8 +127,7 @@ task 'bench', 'quick benchmark of compilation time', ->
   console.log "total  #{ fmt total }"
 
 task 'loc', 'count the lines of source code in the CoffeeScript compiler', ->
-  exec "cat #{ sources.join(' ') } | grep -v '^\\( *#\\|\\s*$\\)' | wc -l | tr -s ' '", (err, stdout) ->
-    console.log stdout.trim()
+  os.system "cat #{ sources.join(' ') } | grep -v '^\\( *#\\|\\s*$\\)' | wc -l | tr -s ' '"
 
 
 # Run the CoffeeScript test suite.
@@ -223,10 +192,10 @@ runTests = (CoffeeScript) ->
     return
 
   # Run every test in the `test` folder, recording failures.
-  files = fs.readdirSync 'test'
+  files = file.list 'test'
   for file in files when file.match /\.coffee$/i
-    currentFile = filename = path.join 'test', file
-    code = fs.readFileSync filename
+    currentFile = filename = file.join 'test', file
+    code = file.read filename
     try
       CoffeeScript.run code.toString(), {filename}
     catch error
@@ -239,7 +208,7 @@ task 'test', 'run the CoffeeScript language test suite', ->
 
 
 task 'test:browser', 'run the test suite against the merged browser script', ->
-  source = fs.readFileSync 'extras/coffee-script.js', 'utf-8'
+  source = file.read 'extras/coffee-script.js', 'utf-8'
   result = {}
   global.testingBrowser = yes
   (-> eval source).call result

@@ -1,7 +1,6 @@
-#!/usr/bin/env node
+#!/usr/bin/env narwhal
 
-var path = require('path');
-var fs   = require('fs');
-var lib  = path.join(path.dirname(fs.realpathSync(__filename)), '../lib');
+var file = require('file');
+var lib  = file.resolve(file.absolute(system.args[0]), '../lib');
 
 require(lib + '/coffee-script/cake').run();

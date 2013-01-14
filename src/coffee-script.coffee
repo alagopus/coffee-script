@@ -6,18 +6,16 @@
 # If included on a webpage, it will automatically sniff out, compile, and
 # execute all scripts present in `text/coffeescript` tags.
 
-fs               = require 'fs'
-path             = require 'path'
+file             = require 'file'
 {Lexer,RESERVED} = require './lexer'
 {parser}         = require './parser'
-vm               = require 'vm'
 
 stripBOM = (content) ->
   if content.charCodeAt(0) is 0xFEFF then content.substring 1 else content
 
 if require.extensions
   require.extensions['.coffee'] = (module, filename) ->
-    content = compile stripBOM(fs.readFileSync filename, 'utf8'), {filename}
+    content = compile stripBOM(file.canonical filename, 'utf8'), {filename}
     module._compile content, filename
 
 # The current CoffeeScript version number.
@@ -61,56 +59,32 @@ exports.run = (code, options = {}) ->
   mainModule = require.main
 
   # Set the filename.
-  mainModule.filename = process.argv[1] =
-      if options.filename then fs.realpathSync(options.filename) else '.'
+  mainModule.filename = global.arguments[0] =
+      if options.filename then file.canonical(options.filename) else '.'
 
   # Clear the module cache.
   mainModule.moduleCache and= {}
 
-  # Assign paths for node_modules loading
-  mainModule.paths = require('module')._nodeModulePaths path.dirname fs.realpathSync options.filename
-
   # Compile.
-  if path.extname(mainModule.filename) isnt '.coffee' or require.extensions
-    mainModule._compile compile(code, options), mainModule.filename
+  # FIXME COMMONJS
+  #if file.extension(mainModule.filename) isnt '.coffee' or require.extensions
+  #  mainModule._compile compile(code, options), mainModule.filename
+  #else
+  #  mainModule._compile code, mainModule.filename
+  if file.extension(mainModule.filename) isnt '.coffee' or require.extensions
+    Function('__filename', compile(code, options))(mainModule.filename)
   else
-    mainModule._compile code, mainModule.filename
+    Function('__filename', code)(mainModule.filename)
 
 # Compile and evaluate a string of CoffeeScript (in a Node.js-like environment).
 # The CoffeeScript REPL uses this to run the input.
 exports.eval = (code, options = {}) ->
   return unless code = code.trim()
-  Script = vm.Script
-  if Script
-    if options.sandbox?
-      if options.sandbox instanceof Script.createContext().constructor
-        sandbox = options.sandbox
-      else
-        sandbox = Script.createContext()
-        sandbox[k] = v for own k, v of options.sandbox
-      sandbox.global = sandbox.root = sandbox.GLOBAL = sandbox
-    else
-      sandbox = global
-    sandbox.__filename = options.filename || 'eval'
-    sandbox.__dirname  = path.dirname sandbox.__filename
-    # define module/require only if they chose not to specify their own
-    unless sandbox isnt global or sandbox.module or sandbox.require
-      Module = require 'module'
-      sandbox.module  = _module  = new Module(options.modulename || 'eval')
-      sandbox.require = _require = (path) ->  Module._load path, _module, true
-      _module.filename = sandbox.__filename
-      _require[r] = require[r] for r in Object.getOwnPropertyNames require when r isnt 'paths'
-      # use the same hack node currently uses for their own REPL
-      _require.paths = _module.paths = Module._nodeModulePaths process.cwd()
-      _require.resolve = (request) -> Module._resolveFilename request, _module
   o = {}
   o[k] = v for own k, v of options
   o.bare = on # ensure return value
   js = compile code, o
-  if sandbox is global
-    vm.runInThisContext js
-  else
-    vm.runInContext js, sandbox
+  Function(js)()
 
 # Instantiate a Lexer for our use here.
 lexer = new Lexer

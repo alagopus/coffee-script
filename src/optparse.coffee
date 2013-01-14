@@ -2,7 +2,7 @@
 # Use it like so:
 #
 #     parser  = new OptionParser switches, helpBanner
-#     options = parser.parse process.argv
+#     options = parser.parse global.arguments
 #
 # The first non-option is considered to be the start of the file (and file
 # option) list, and all subsequent arguments are left unparsed.

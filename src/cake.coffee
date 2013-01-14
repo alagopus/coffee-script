@@ -7,13 +7,11 @@
 # current directory's Cakefile.
 
 # External dependencies.
-fs           = require 'fs'
-path         = require 'path'
+fsa0         = require "fs-base"
+file         = require 'file'
 helpers      = require './helpers'
 optparse     = require './optparse'
 CoffeeScript = require './coffee-script'
-
-existsSync   = fs.existsSync or path.existsSync
 
 # Keep track of the list of defined tasks, the accepted options, and so on.
 tasks     = {}
@@ -46,10 +44,10 @@ helpers.extend global,
 # If no tasks are passed, print the help screen. Keep a reference to the
 # original directory name, when running Cake tasks from subdirectories.
 exports.run = ->
-  global.__originalDirname = fs.realpathSync '.'
-  process.chdir cakefileDirectory __originalDirname
-  args = process.argv[2..]
-  CoffeeScript.run fs.readFileSync('Cakefile').toString(), filename: 'Cakefile'
+  global.__originalDirname = file.canonical '.'
+  fsa0.changeWorkingDirectory cakefileDirectory __originalDirname
+  args = global.arguments[1..]
+  CoffeeScript.run file.read('Cakefile').toString(), filename: 'Cakefile'
   oparse = new optparse.OptionParser switches
   return printTasks() unless args.length
   try
@@ -60,8 +58,7 @@ exports.run = ->
 
 # Display the list of Cake tasks in a format similar to `rake -T`
 printTasks = ->
-  relative = path.relative or path.resolve
-  cakefilePath = path.join relative(__originalDirname, process.cwd()), 'Cakefile'
+  cakefilePath = file.join file.relative(__originalDirname, fsa0.workingDirectory()), 'Cakefile'
   console.log "#{cakefilePath} defines the following tasks:\n"
   for name, task of tasks
     spaces = 20 - name.length
@@ -74,14 +71,14 @@ printTasks = ->
 fatalError = (message) ->
   console.error message + '\n'
   console.log 'To see a list of all tasks/options, run "cake"'
-  process.exit 1
+  os.exit 1
 
 missingTask = (task) -> fatalError "No such task: #{task}"
 
 # When `cake` is invoked, search in the current and all parent directories
 # to find the relevant Cakefile.
 cakefileDirectory = (dir) ->
-  return dir if existsSync path.join dir, 'Cakefile'
-  parent = path.normalize path.join dir, '..'
+  return dir if file.exists file.join dir, 'Cakefile'
+  parent = file.resolve dir, '..'
   return cakefileDirectory parent unless parent is dir
-  throw new Error "Cakefile not found in #{process.cwd()}"
+  throw new Error "Cakefile not found in #{fsa0.workingDirectory()}"

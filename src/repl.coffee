@@ -5,15 +5,14 @@
 #     coffee> console.log "#{num} bottles of beer" for num in [99..1]
 
 # Start by opening up `stdin` and `stdout`.
-stdin = process.openStdin()
-stdout = process.stdout
+stdin = system.stdin
+stdout = system.stdout
 
 # Require the **coffee-script** module to get access to the compiler.
 CoffeeScript = require './coffee-script'
 readline     = require 'readline'
+os           = require 'os'
 {inspect}    = require 'util'
-{Script}     = require 'vm'
-Module       = require 'module'
 
 # REPL Setup
 
@@ -22,8 +21,6 @@ REPL_PROMPT = 'coffee> '
 REPL_PROMPT_MULTILINE = '------> '
 REPL_PROMPT_CONTINUATION = '......> '
 enableColours = no
-unless process.platform is 'win32'
-  enableColours = not process.env.NODE_DISABLE_COLORS
 
 # Log an error.
 error = (err) ->
@@ -43,7 +40,7 @@ autocomplete = (text) ->
 completeAttribute = (text) ->
   if match = text.match ACCESSOR
     [all, obj, prefix] = match
-    try obj = Script.runInThisContext obj
+    try obj = Function('return(' + obj + ')')()
     catch e
       return
     return unless obj?
@@ -60,7 +57,7 @@ completeVariable = (text) ->
   free = text.match(SIMPLEVAR)?[1]
   free = "" if text is ""
   if free?
-    vars = Script.runInThisContext 'Object.getOwnPropertyNames(Object(this))'
+    vars = Function('return Object.getOwnPropertyNames(Object(this))')()
     keywords = (r for r in CoffeeScript.RESERVED when r[..1] isnt '__')
     candidates = vars
     for key in keywords when key not in candidates
@@ -73,7 +70,7 @@ getCompletions = (prefix, candidates) ->
   el for el in candidates when 0 is el.indexOf prefix
 
 # Make sure that uncaught exceptions don't kill the REPL.
-process.on 'uncaughtException', error
+# FIXME COMMONJS: process.on 'uncaughtException', error
 
 # The current backlog of multi-line code.
 backlog = ''
@@ -138,7 +135,7 @@ if stdin.readable and stdin.isRaw
       stdout.write "#{line}\n"
       run line
     stdout.write '\n'
-    process.exit 0
+    os.exit 0
 else
   # Create the REPL by listening to **stdin**.
   if readline.createInterface.length < 3

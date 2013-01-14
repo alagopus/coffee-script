@@ -5,12 +5,12 @@
 # interactive REPL.
 
 # External dependencies.
-fs             = require 'fs'
-path           = require 'path'
+fsa0           = require 'fs-base'
+file           = require 'file'
+os             = require 'os'
 helpers        = require './helpers'
 optparse       = require './optparse'
 CoffeeScript   = require './coffee-script'
-{spawn, exec}  = require 'child_process'
 {EventEmitter} = require 'events'
 
 exists         = fs.exists or path.exists
@@ -18,8 +18,8 @@ exists         = fs.exists or path.exists
 # Allow CoffeeScript to emit Node.js events.
 helpers.extend CoffeeScript, new EventEmitter
 
-printLine = (line) -> process.stdout.write line + '\n'
-printWarn = (line) -> process.stderr.write line + '\n'
+printLine = (line) -> system.stdout.write line + '\n'
+printWarn = (line) -> system.stderr.write line + '\n'
 
 hidden = (file) -> /^\.|~$/.test file
 
@@ -47,7 +47,6 @@ SWITCHES = [
   ['-s', '--stdio',           'listen for and compile scripts over stdio']
   ['-t', '--tokens',          'print out the tokens that the lexer/rewriter produce']
   ['-v', '--version',         'display the version number']
-  ['-w', '--watch',           'watch scripts for changes and rerun commands']
 ]
 
 # Top-level objects shared by all the functions.
@@ -60,7 +59,7 @@ optionParser = null
 
 # Run `coffee` by parsing passed options and determining what action to take.
 # Many flags cause us to divert before compiling anything. Flags passed after
-# `--` will be passed verbatim to your script as arguments in `process.argv`
+# `--` will be passed verbatim to your script as arguments in `global.arguments`
 exports.run = ->
   parseOptions()
   return forkNode()                      if opts.nodejs
@@ -68,15 +67,11 @@ exports.run = ->
   return version()                       if opts.version
   loadRequires()                         if opts.require
   return require './repl'                if opts.interactive
-  if opts.watch and !fs.watch
-    return printWarn "The --watch feature depends on Node v0.6.0+. You are running #{process.version}."
   return compileStdio()                  if opts.stdio
   return compileScript null, sources[0]  if opts.eval
   return require './repl'                unless sources.length
   literals = if opts.run then sources.splice 1 else []
-  process.argv = process.argv[0..1].concat literals
-  process.argv[0] = 'coffee'
-  process.execPath = require.main.filename
+  global.arguments = global.arguments[0..0].concat literals
   for source in sources
     compilePath source, yes, path.normalize source
 
@@ -92,7 +87,7 @@ compilePath = (source, topLevel, base) ->
         return compilePath source, topLevel, base
       if topLevel
         console.error "File not found: #{source}"
-        process.exit 1
+        os.exit 1
       return
     if stats.isDirectory()
       watchDir source, base if opts.watch
@@ -142,13 +137,13 @@ compileScript = (file, input, base) ->
     return if CoffeeScript.listeners('failure').length
     return printLine err.message + '\x07' if o.watch
     printWarn err instanceof Error and err.stack or "ERROR: #{err}"
-    process.exit 1
+    os.exit 1
 
 # Attach the appropriate listeners to compile scripts incoming over **stdin**,
 # and write them back to **stdout**.
 compileStdio = ->
   code = ''
-  stdin = process.openStdin()
+  stdin = system.stdin
   stdin.on 'data', (buffer) ->
     code += buffer.toString() if buffer
   stdin.on 'end', ->
@@ -291,7 +286,7 @@ timeLog = (message) ->
 lint = (file, js) ->
   printIt = (buffer) -> printLine file + ':\t' + buffer.toString().trim()
   conf = __dirname + '/../../extras/jsl.conf'
-  jsl = spawn 'jsl', ['-nologo', '-stdin', '-conf', conf]
+  jsl = os.popen "jsl -nologo -stdin -conf " + conf
   jsl.stdout.on 'data', printIt
   jsl.stderr.on 'data', printIt
   jsl.stdin.write js
@@ -305,10 +300,10 @@ printTokens = (tokens) ->
   printLine strings.join(' ')
 
 # Use the [OptionParser module](optparse.html) to extract all options from
-# `process.argv` that are specified in `SWITCHES`.
+# `global.arguments` that are specified in `SWITCHES`.
 parseOptions = ->
   optionParser  = new optparse.OptionParser SWITCHES, BANNER
-  o = opts      = optionParser.parse process.argv[2..]
+  o = opts      = optionParser.parse global.arguments[1..]
   o.compile     or=  !!o.output
   o.run         = not (o.compile or o.print or o.lint)
   o.print       = !!  (o.print or (o.eval or o.stdio and o.compile))
@@ -324,12 +319,9 @@ compileOptions = (filename) ->
 # the `node` binary, preserving the other options.
 forkNode = ->
   nodeArgs = opts.nodejs.split /\s+/
-  args     = process.argv[1..]
+  args     = global.arguments
   args.splice args.indexOf('--nodejs'), 2
-  spawn process.execPath, nodeArgs.concat(args),
-    cwd:        process.cwd()
-    env:        process.env
-    customFds:  [0, 1, 2]
+  os.system nodeArgs.concat(args)
 
 # Print the `--help` usage message and exit. Deprecated switches are not
 # shown.

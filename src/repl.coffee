@@ -2,7 +2,7 @@
 # and evaluates it. Good for simple tests, or poking around the **Node.js** API.
 # Using it looks like this:
 #
-#     coffee> console.log "#{num} bottles of beer" for num in [99..1]
+#     coffee> system.stdout.print "#{num} bottles of beer" for num in [99..1]
 
 # Start by opening up `stdin` and `stdout`.
 stdin = system.stdin
@@ -10,9 +10,7 @@ stdout = system.stdout
 
 # Require the **coffee-script** module to get access to the compiler.
 CoffeeScript = require './coffee-script'
-readline     = require 'readline'
 os           = require 'os'
-{inspect}    = require 'util'
 
 # REPL Setup
 
@@ -24,7 +22,7 @@ enableColours = no
 
 # Log an error.
 error = (err) ->
-  stdout.write (err.stack or err.toString()) + '\n'
+  stdout.write err.toString() + (err.stack or '') + '\n'
 
 ## Autocompletion
 
@@ -83,11 +81,6 @@ run = (buffer) ->
   buffer = buffer.replace /(^|[\r\n]+)(\s*)##?(?:[^#\r\n][^\r\n]*|)($|[\r\n])/, "$1$2$3"
   # remove trailing newlines
   buffer = buffer.replace /[\r\n]+$/, ""
-  if multilineMode
-    backlog += "#{buffer}\n"
-    repl.setPrompt REPL_PROMPT_CONTINUATION
-    repl.prompt()
-    return
   if !buffer.toString().trim() and !backlog
     repl.prompt()
     return
@@ -107,88 +100,23 @@ run = (buffer) ->
     }
     if returnValue is undefined
       global._ = _
-    repl.output.write "#{inspect returnValue, no, 2, enableColours}\n"
+    repl.output.write "#{returnValue}\n"
   catch err
     error err
   repl.prompt()
 
-if stdin.readable and stdin.isRaw
-  # handle piped input
-  pipedInput = ''
-  repl =
-    prompt: -> stdout.write @_prompt
-    setPrompt: (p) -> @_prompt = p
-    input: stdin
-    output: stdout
-    on: ->
-  stdin.on 'data', (chunk) ->
-    pipedInput += chunk
-    return unless /\n/.test pipedInput
-    lines = pipedInput.split "\n"
-    pipedInput = lines[lines.length - 1]
-    for line in lines[...-1] when line
-      stdout.write "#{line}\n"
-      run line
-    return
-  stdin.on 'end', ->
-    for line in pipedInput.trim().split "\n" when line
-      stdout.write "#{line}\n"
-      run line
-    stdout.write '\n'
-    os.exit 0
-else
-  # Create the REPL by listening to **stdin**.
-  if readline.createInterface.length < 3
-    repl = readline.createInterface stdin, autocomplete
-    stdin.on 'data', (buffer) -> repl.write buffer
-  else
-    repl = readline.createInterface stdin, stdout, autocomplete
-
-multilineMode = off
-
-# Handle multi-line mode switch
-repl.input.on 'keypress', (char, key) ->
-  # test for Ctrl-v
-  return unless key and key.ctrl and not key.meta and not key.shift and key.name is 'v'
-  cursorPos = repl.cursor
-  repl.output.cursorTo 0
-  repl.output.clearLine 1
-  multilineMode = not multilineMode
-  repl._line() if not multilineMode and backlog
-  backlog = ''
-  repl.setPrompt (newPrompt = if multilineMode then REPL_PROMPT_MULTILINE else REPL_PROMPT)
-  repl.prompt()
-  repl.output.cursorTo newPrompt.length + (repl.cursor = cursorPos)
-
-# Handle Ctrl-d press at end of last line in multiline mode
-repl.input.on 'keypress', (char, key) ->
-  return unless multilineMode and repl.line
-  # test for Ctrl-d
-  return unless key and key.ctrl and not key.meta and not key.shift and key.name is 'd'
-  multilineMode = off
-  repl._line()
-
-repl.on 'attemptClose', ->
-  if multilineMode
-    multilineMode = off
-    repl.output.cursorTo 0
-    repl.output.clearLine 1
-    repl._onLine repl.line
-    return
-  if backlog or repl.line
-    backlog = ''
-    repl.historyIndex = -1
-    repl.setPrompt REPL_PROMPT
-    repl.output.write '\n(^C again to quit)'
-    repl._line (repl.line = '')
-  else
-    repl.close()
-
-repl.on 'close', ->
-  repl.output.write '\n'
-  repl.input.destroy()
-
-repl.on 'line', run
+repl =
+  prompt: ->
+    @output.write @_prompt
+    @output.flush()
+  setPrompt: (p) -> @_prompt = p
+  input: stdin
+  output: stdout
+  on: ->
 
 repl.setPrompt REPL_PROMPT
 repl.prompt()
+
+while line = repl.input.readLine()
+  run line
+

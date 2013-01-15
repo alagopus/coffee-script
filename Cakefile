@@ -1,12 +1,12 @@
 file          = require 'file'
 os            = require 'os'
-{extend}      = require './lib/coffee-script/helpers.js'
-CoffeeScript  = require './lib/coffee-script'
+{extend}      = require './lib/coffee-script/helpers'
+CoffeeScript  = require './lib/coffee-script/coffee-script'
 
 # ANSI Terminal Colors.
 enableColors = no
-unless process.platform is 'win32'
-  enableColors = not process.env.NODE_DISABLE_COLORS
+unless system.os is 'win32'
+  enableColors = not system.env.NODE_DISABLE_COLORS
 
 bold = red = green = reset = ''
 if enableColors
@@ -33,21 +33,19 @@ sources = [
 
 # Run a CoffeeScript through our interpreter.
 run = (args, cb) ->
-  proc =         os.system ['narwhal', 'bin/coffee'].concat(args)
-  proc.stderr.on 'data', (buffer) -> console.log buffer.toString()
-  proc.on        'exit', (status) ->
-    process.exit(1) if status != 0
-    cb() if typeof cb is 'function'
+  status = os.system ['narwhal', 'bin/coffee'].concat(args)
+  os.exit(1) if status != 0
+  cb() if typeof cb is 'function'
 
 # Log a message with a color.
 log = (message, color, explanation) ->
-  console.log color + message + reset + ' ' + (explanation or '')
+  system.stdout.print color + message + reset + ' ' + (explanation or '')
 
 option '-p', '--prefix [DIR]', 'set the installation prefix for `cake install`'
 
 task 'build', 'build the CoffeeScript language from source', build = (cb) ->
   files = file.list 'src'
-  files = ('src/' + file for file in files when file.match(/\.coffee$/))
+  files = ('src/' + f for f in files when f.match(/\.coffee$/))
   run ['-c', '-o', 'lib/coffee-script'].concat(files), cb
 
 
@@ -57,7 +55,7 @@ task 'build:full', 'rebuild the source twice, and run the tests', ->
       csPath = './lib/coffee-script'
       delete require.cache[require.resolve csPath]
       unless runTests require csPath
-        process.exit 1
+        system.exit 1
 
 
 task 'build:parser', 'rebuild the Jison parser (run build first)', ->
@@ -91,10 +89,10 @@ task 'build:browser', 'rebuild the merged script for inclusion in the browser', 
       }
     }(this));
   """
-  unless process.env.MINIFY is 'false'
+  unless system.env.MINIFY is 'false'
     {code} = require('uglify-js').minify code, fromString: true
   file.write 'extras/coffee-script.js', header + '\n' + code
-  console.log "built ... running browser tests:"
+  system.stdout.print "built ... running browser tests:"
   invoke 'test:browser'
 
 
@@ -117,14 +115,14 @@ task 'bench', 'quick benchmark of compilation time', ->
   now    = Date.now()
   time   = -> total += ms = -(now - now = Date.now()); fmt ms
   tokens = CoffeeScript.tokens co, rewrite: false
-  console.log "Lex    #{time()} (#{tokens.length} tokens)"
+  system.stdout.print "Lex    #{time()} (#{tokens.length} tokens)"
   tokens = new Rewriter().rewrite tokens
-  console.log "Rewrite#{time()} (#{tokens.length} tokens)"
+  system.stdout.print "Rewrite#{time()} (#{tokens.length} tokens)"
   nodes  = CoffeeScript.nodes tokens
-  console.log "Parse  #{time()}"
+  system.stdout.print "Parse  #{time()}"
   js     = nodes.compile bare: true
-  console.log "Compile#{time()} (#{js.length} chars)"
-  console.log "total  #{ fmt total }"
+  system.stdout.print "Compile#{time()} (#{js.length} chars)"
+  system.stdout.print "total  #{ fmt total }"
 
 task 'loc', 'count the lines of source code in the CoffeeScript compiler', ->
   os.system "cat #{ sources.join(' ') } | grep -v '^\\( *#\\|\\s*$\\)' | wc -l | tr -s ' '"
@@ -171,35 +169,34 @@ runTests = (CoffeeScript) ->
   global.eq      = (a, b, msg) -> ok egal(a, b), msg
   global.arrayEq = (a, b, msg) -> ok arrayEgal(a,b), msg
 
-  # When all the tests have run, collect and print errors.
-  # If a stacktrace is available, output the compiled function source.
-  process.on 'exit', ->
-    time = ((Date.now() - startTime) / 1000).toFixed(2)
-    message = "passed #{passedTests} tests in #{time} seconds#{reset}"
-    return log(message, green) unless failures.length
-    log "failed #{failures.length} and #{message}", red
-    for fail in failures
-      {error, filename}  = fail
-      jsFilename         = filename.replace(/\.coffee$/,'.js')
-      match              = error.stack?.match(new RegExp(fail.file+":(\\d+):(\\d+)"))
-      match              = error.stack?.match(/on line (\d+):/) unless match
-      [match, line, col] = match if match
-      console.log ''
-      log "  #{error.description}", red if error.description
-      log "  #{error.stack}", red
-      log "  #{jsFilename}: line #{line ? 'unknown'}, column #{col ? 'unknown'}", red
-      console.log "  #{error.source}" if error.source
-    return
-
   # Run every test in the `test` folder, recording failures.
   files = file.list 'test'
-  for file in files when file.match /\.coffee$/i
-    currentFile = filename = file.join 'test', file
+  for f in files when f.match /\.coffee$/i
+    currentFile = filename = file.join 'test', f
     code = file.read filename
     try
       CoffeeScript.run code.toString(), {filename}
     catch error
       failures.push {filename, error}
+
+  # When all the tests have run, collect and print errors.
+  # If a stacktrace is available, output the compiled function source.
+  time = ((Date.now() - startTime) / 1000).toFixed(2)
+  message = "passed #{passedTests} tests in #{time} seconds#{reset}"
+  return log(message, green) unless failures.length
+  log "failed #{failures.length} and #{message}", red
+  for fail in failures
+    {error, filename}  = fail
+    jsFilename         = filename.replace(/\.coffee$/,'.js')
+    match              = error.stack?.match(new RegExp(fail.file+":(\\d+):(\\d+)"))
+    match              = error.stack?.match(/on line (\d+):/) unless match
+    [match, line, col] = match if match
+    system.stdout.print ''
+    log "  #{error.description}", red if error.description
+    log "  #{error.stack}", red
+    log "  #{jsFilename}: line #{line ? 'unknown'}, column #{col ? 'unknown'}", red
+    system.stdout.print "  #{error.source}" if error.source
+
   return !failures.length
 
 

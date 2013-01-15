@@ -1511,7 +1511,7 @@ exports.Op = class Op extends Base
   # Mimic Python's chained comparisons when multiple comparison operators are
   # used sequentially. For example:
   #
-  #     bin/coffee -e 'console.log 50 < 65 > 10'
+  #     bin/coffee -e 'system.stdout.print 50 < 65 > 10'
   #     true
   compileChain: (o) ->
     [@first.second, shared] = @first.second.cache o

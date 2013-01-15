@@ -15,7 +15,7 @@ stripBOM = (content) ->
 
 if require.extensions
   require.extensions['.coffee'] = (module, filename) ->
-    content = compile stripBOM(file.canonical filename, 'utf8'), {filename}
+    content = compile stripBOM(file.read filename, 'utf8'), {filename}
     module._compile content, filename
 
 # The current CoffeeScript version number.
@@ -65,26 +65,30 @@ exports.run = (code, options = {}) ->
   # Clear the module cache.
   mainModule.moduleCache and= {}
 
-  # Compile.
-  # FIXME COMMONJS
-  #if file.extension(mainModule.filename) isnt '.coffee' or require.extensions
-  #  mainModule._compile compile(code, options), mainModule.filename
-  #else
-  #  mainModule._compile code, mainModule.filename
-  if file.extension(mainModule.filename) isnt '.coffee' or require.extensions
-    Function('__filename', compile(code, options))(mainModule.filename)
-  else
-    Function('__filename', code)(mainModule.filename)
+  # Assign paths for node_modules loading
+  mainModule.paths = [ file.dirname file.canonical options.filename ]
 
-# Compile and evaluate a string of CoffeeScript (in a Node.js-like environment).
+  # Compile if it is coffee.
+  if file.extension(mainModule.filename) isnt '.coffee' or require.extensions
+    code = compile(code, options)
+  Packages.org.mozilla.javascript.Context.getCurrentContext().evaluateString mainModule, String(code), mainModule.filename, 0, null
+
+# Compile and evaluate a string of CoffeeScript.
 # The CoffeeScript REPL uses this to run the input.
 exports.eval = (code, options = {}) ->
   return unless code = code.trim()
+  if options.sandbox?
+    sandbox = options.sandbox
+    sandbox.global = sandbox.root = sandbox.GLOBAL = sandbox
+  else
+    sandbox = global
+  sandbox.__filename = options.filename || 'eval'
+  sandbox.__dirname  = file.dirname sandbox.__filename
   o = {}
   o[k] = v for own k, v of options
   o.bare = on # ensure return value
   js = compile code, o
-  Function(js)()
+  Packages.org.mozilla.javascript.Context.getCurrentContext().evaluateString sandbox, String(js), sandbox.__filename, 0, null
 
 # Instantiate a Lexer for our use here.
 lexer = new Lexer

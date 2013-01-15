@@ -59,18 +59,18 @@ exports.run = ->
 # Display the list of Cake tasks in a format similar to `rake -T`
 printTasks = ->
   cakefilePath = file.join file.relative(__originalDirname, fsa0.workingDirectory()), 'Cakefile'
-  console.log "#{cakefilePath} defines the following tasks:\n"
+  system.stdout.print "#{cakefilePath} defines the following tasks:\n"
   for name, task of tasks
     spaces = 20 - name.length
     spaces = if spaces > 0 then Array(spaces + 1).join(' ') else ''
     desc   = if task.description then "# #{task.description}" else ''
-    console.log "cake #{name}#{spaces} #{desc}"
-  console.log oparse.help() if switches.length
+    system.stdout.print "cake #{name}#{spaces} #{desc}"
+  system.stdout.print oparse.help() if switches.length
 
 # Print an error and exit when attempting to use an invalid task/option.
 fatalError = (message) ->
-  console.error message + '\n'
-  console.log 'To see a list of all tasks/options, run "cake"'
+  system.stderr.print message + '\n'
+  system.stdout.print 'To see a list of all tasks/options, run "cake"'
   os.exit 1
 
 missingTask = (task) -> fatalError "No such task: #{task}"

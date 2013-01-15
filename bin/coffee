@@ -1,6 +1,25 @@
 #!/usr/bin/env narwhal
 
 var file = require('file');
-var lib  = file.resolve(file.absolute(system.args[0]), '../lib');
 
-require(lib + '/coffee-script/command').run();
+function lib(exe) {
+    return one(file.canonical(exe), ['../lib/coffee-script', '../packages/coffee-script/lib/coffee-script']);
+}
+
+function one(bin, alt) {
+    var result = null;
+    alt.forEach(function(dir) {
+        var test = file.resolve(bin, dir);
+        if (file.exists(test)) {
+            result = test;
+        }
+    });
+    if (result) return result;
+    throw "not found in " + alt
+}
+
+if (require.main == module) {
+    require(lib(system.args[0]) + '/command').run();
+} else {
+    exports.lib = lib;
+}

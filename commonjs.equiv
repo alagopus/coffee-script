@@ -1,0 +1,39 @@
+console.error/system.stderr.print
+console.log/system.stdout.print
+fs.existsSync/file.exists
+fs.readdir/file.list
+fs.readFile/file.read
+fs.readFileSync/file.read
+fs.realpathSync/file.canonical
+fs.writeFile/file.write
+fs.writeFileSync/file.write
+path.basename/file.basename
+path.dirname/file.dirname
+path.existsSync/file.exists
+path.extname/file.extension
+path.join/file.join
+path.normalize/file.resolve
+process.argv/global.arguments
+process.chdir/fsa0.changeWorkingDirectory
+process.cwd/fsa0.workingDirectory
+process.env/system.env
+process.exit/os.exit
+process.openStdin()/system.stdin
+process.stdout/system.stdout
+process.stderr/system.stderr
+
+fsa0           = require 'fs-base'
+file           = require 'file'
+os             = require 'os'
+
+
+    
+    print("### require: " + require)
+    require = ((delegate) ->
+        return (path) ->
+            print("### require '" + path + "'")
+            return delegate.apply this, arguments
+    )(require)
+    print("### require: " + require)
+
+

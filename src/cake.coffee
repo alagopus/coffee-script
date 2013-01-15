@@ -47,7 +47,7 @@ exports.run = ->
   global.__originalDirname = file.canonical '.'
   fsa0.changeWorkingDirectory cakefileDirectory __originalDirname
   args = global.arguments[1..]
-  CoffeeScript.run file.read('Cakefile').toString(), filename: 'Cakefile'
+  CoffeeScript.run file.read('Cakefile').toString(), filename: 'Cakefile .coffee'
   oparse = new optparse.OptionParser switches
   return printTasks() unless args.length
   try

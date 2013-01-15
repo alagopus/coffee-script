@@ -45,7 +45,7 @@ option '-p', '--prefix [DIR]', 'set the installation prefix for `cake install`'
 
 task 'build', 'build the CoffeeScript language from source', build = (cb) ->
   files = file.list 'src'
-  files = ('src/' + f for f in files when f.match(/\.coffee$/))
+  files = ('src/' + f for f in files when f.match(/\.(lit)?coffee$/))
   run ['-c', '-o', 'lib/coffee-script'].concat(files), cb
 
 
@@ -171,11 +171,12 @@ runTests = (CoffeeScript) ->
 
   # Run every test in the `test` folder, recording failures.
   files = file.list 'test'
-  for f in files when f.match /\.coffee$/i
+  for f in files when f.match /\.(lit)?coffee$/i
+    literate = file.extension(f) is '.litcoffee'
     currentFile = filename = file.join 'test', f
     code = file.read filename
     try
-      CoffeeScript.run code.toString(), {filename}
+      CoffeeScript.run code.toString(), {filename, literate}
     catch error
       failures.push {filename, error}
 

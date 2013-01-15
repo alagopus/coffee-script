@@ -6,23 +6,30 @@
 # If included on a webpage, it will automatically sniff out, compile, and
 # execute all scripts present in `text/coffeescript` tags.
 
-file             = require 'file'
-{Lexer,RESERVED} = require './lexer'
-{parser}         = require './parser'
+file      = require 'file'
+{Lexer}   = require './lexer'
+{parser}  = require './parser'
 
-stripBOM = (content) ->
-  if content.charCodeAt(0) is 0xFEFF then content.substring 1 else content
+# The file extensions that are considered to be CoffeeScript.
+extensions = ['.coffee', '.litcoffee']
+
+compileJS = (scope, code, filename) ->
+  code = String(code)
+  scope = global unless scope?
+  Packages.org.mozilla.javascript.Context.getCurrentContext().evaluateString scope, code, filename, 0, null
+
+# Load and run a CoffeeScript file for Node, stripping any `BOM`s.
+loadFile = (module, filename) ->
+  raw = file.read filename, { charset: 'utf-8' }
+  stripped = if raw.charCodeAt(0) is 0xFEFF then raw.substring 1 else raw
+  compileJS module, compile(stripped, {filename}), filename
 
 if require.extensions
-  require.extensions['.coffee'] = (module, filename) ->
-    content = compile stripBOM(file.read filename, 'utf8'), {filename}
-    module._compile content, filename
+  for ext in extensions
+    require.extensions[ext] = loadFile
 
 # The current CoffeeScript version number.
-exports.VERSION = '1.4.0'
-
-# Words that cannot be used as identifiers in CoffeeScript code
-exports.RESERVED = RESERVED
+exports.VERSION = '1.5.0-pre'
 
 # Expose helpers for testing.
 exports.helpers = require './helpers'
@@ -32,7 +39,7 @@ exports.helpers = require './helpers'
 exports.compile = compile = (code, options = {}) ->
   {merge} = exports.helpers
   try
-    js = (parser.parse lexer.tokenize code).compile options
+    js = (parser.parse lexer.tokenize(code, options)).compile options
     return js unless options.header
   catch err
     err.message = "In #{options.filename}, #{err.message}" if options.filename
@@ -68,10 +75,9 @@ exports.run = (code, options = {}) ->
   # Assign paths for node_modules loading
   mainModule.paths = [ file.dirname file.canonical options.filename ]
 
-  # Compile if it is coffee.
-  if file.extension(mainModule.filename) isnt '.coffee' or require.extensions
-    code = compile(code, options)
-  Packages.org.mozilla.javascript.Context.getCurrentContext().evaluateString mainModule, String(code), mainModule.filename, 0, null
+  # Compile.
+  code = compile(code, options) unless (file.extension(mainModule.filename) not in extensions) or require.extensions
+  compileJS mainModule, code, mainModule.filename
 
 # Compile and evaluate a string of CoffeeScript.
 # The CoffeeScript REPL uses this to run the input.
@@ -88,7 +94,7 @@ exports.eval = (code, options = {}) ->
   o[k] = v for own k, v of options
   o.bare = on # ensure return value
   js = compile code, o
-  Packages.org.mozilla.javascript.Context.getCurrentContext().evaluateString sandbox, String(js), sandbox.__filename, 0, null
+  compileJS sandbox, js, sandbox.__filename
 
 # Instantiate a Lexer for our use here.
 lexer = new Lexer

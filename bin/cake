@@ -1,6 +1,3 @@
 #!/usr/bin/env narwhal
 
-var file = require('file');
-var lib  = file.resolve(file.absolute(system.args[0]), '../lib');
-
-require(lib + '/coffee-script/cake').run();
+require(require('./coffee').lib(system.args[0]) + '/cake').run();

@@ -531,7 +531,7 @@ exports.Call = class Call extends Base
   unfoldSoak: (o) ->
     if @soak
       if @variable
-        return ifn if ifn = unfoldSoak o, this, 'variable'
+        return ifn if ifn = globalUnfoldSoak o, this, 'variable'
         [left, rite] = new Value(@variable).cacheReference o
       else
         left = new Literal @superReference o
@@ -556,7 +556,7 @@ exports.Call = class Call extends Base
           call.variable = ifn
         else
           call.variable.base = ifn
-      ifn = unfoldSoak o, call, 'variable'
+      ifn = globalUnfoldSoak o, call, 'variable'
     ifn
 
   # Walk through the objects in the arguments, moving over simple values.
@@ -1015,7 +1015,7 @@ exports.Assign = class Assign extends Base
     @[if @context is 'object' then 'value' else 'variable'].assigns name
 
   unfoldSoak: (o) ->
-    unfoldSoak o, this, 'variable'
+    globalUnfoldSoak o, this, 'variable'
 
   # Compile an assignment, delegating to `compilePatternMatch` or
   # `compileSplice` if appropriate. Keep track of the name of the base object
@@ -1128,7 +1128,7 @@ exports.Assign = class Assign extends Base
   compileConditional: (o) ->
     [left, right] = @variable.cacheReference o
     # Disallow conditional assignment of undefined variables.
-    if not left.properties.length and left.base instanceof Literal and 
+    if not left.properties.length and left.base instanceof Literal and
            left.base.value != "this" and not o.scope.check left.base.value
       throw new Error "the variable \"#{left.base.value}\" can't be assigned with #{@context} because it has not been defined."
     if "?" in @context then o.isExistentialEquals = true
@@ -1222,9 +1222,15 @@ exports.Code = class Code extends Base
     idt   = o.indent
     code  = 'function'
     code  += ' ' + @name if @ctor
+    codeEnd = "}"
+    if @name and not @ctor
+      mangled = @name.replace(/^\d|\W/g, (t) -> "_" + t.charCodeAt(0).toString(36))
+      mangled = o.scope.freeVariable mangled
+      code = '(function(){ function ' + mangled
+      codeEnd = '}; return ' + mangled + '})()'
     code  += '(' + params.join(', ') + ') {'
     code  += "\n#{ @body.compileWithDeclarations o }\n#{@tab}" unless @body.isEmpty()
-    code  += '}'
+    code  += codeEnd 
     return @tab + code if @ctor
     if @front or (o.level >= LEVEL_ACCESS) then "(#{code})" else code
 
@@ -1289,7 +1295,7 @@ exports.Param = class Param extends Base
     for obj in name.objects
       # * assignments within destructured parameters `{foo:bar}`
       if obj instanceof Assign
-        names.push obj.value.unwrap().value
+        names.push @names(obj.value.unwrap())...
       # * splats within destructured parameters `[xs...]`
       else if obj instanceof Splat
         names.push obj.name.unwrap().value
@@ -1474,7 +1480,7 @@ exports.Op = class Op extends Base
       new Op '!', this
 
   unfoldSoak: (o) ->
-    @operator in ['++', '--', 'delete'] and unfoldSoak o, this, 'first'
+    @operator in ['++', '--', 'delete'] and globalUnfoldSoak o, this, 'first'
 
   generateDo: (exp) ->
     passedParams = []
@@ -1934,6 +1940,8 @@ Closure =
     func = new Code [], Block.wrap [expressions]
     args = []
     if (mentionsArgs = expressions.contains @literalArgs) or expressions.contains @literalThis
+      if mentionsArgs and expressions.classBody
+        throw SyntaxError "Class bodies shouldn't reference arguments"
       meth = new Literal if mentionsArgs then 'apply' else 'call'
       args = [new Literal 'this']
       args.push new Literal 'arguments' if mentionsArgs
@@ -1951,7 +1959,7 @@ Closure =
       (node instanceof Call and node.isSuper)
 
 # Unfold a node's child if soak, then tuck the node under created `If`
-unfoldSoak = (o, parent, name) ->
+globalUnfoldSoak = (o, parent, name) ->
   return unless ifn = parent[name].unfoldSoak o
   parent[name] = ifn.body
   ifn.body = new Value parent

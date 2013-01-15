@@ -11,6 +11,7 @@ stdout = system.stdout
 # Require the **coffee-script** module to get access to the compiler.
 CoffeeScript = require './coffee-script'
 os           = require 'os'
+{RESERVED}   = require './lexer'
 
 # REPL Setup
 
@@ -56,7 +57,7 @@ completeVariable = (text) ->
   free = "" if text is ""
   if free?
     vars = Function('return Object.getOwnPropertyNames(Object(this))')()
-    keywords = (r for r in CoffeeScript.RESERVED when r[..1] isnt '__')
+    keywords = (r for r in RESERVED when r[..1] isnt '__')
     candidates = vars
     for key in keywords when key not in candidates
       candidates.push key

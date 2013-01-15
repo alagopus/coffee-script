@@ -136,6 +136,13 @@ runTests = (CoffeeScript) ->
   failures    = []
 
   global[name] = func for name, func of require 'assert'
+  unless global.doesNotThrow?
+    global.doesNotThrow = (block, error, message) ->
+      try
+        block()
+      catch e
+        message = String(e) unless message?
+        global.fail {message}
 
   # Convenience aliases.
   global.CoffeeScript = CoffeeScript
@@ -194,7 +201,8 @@ runTests = (CoffeeScript) ->
     [match, line, col] = match if match
     system.stdout.print ''
     log "  #{error.description}", red if error.description
-    log "  #{error.stack}", red
+    log "  #{error.stack}", red if error.stack
+    log "  #{error}", red unless error.stack
     log "  #{jsFilename}: line #{line ? 'unknown'}, column #{col ? 'unknown'}", red
     system.stdout.print "  #{error.source}" if error.source
 

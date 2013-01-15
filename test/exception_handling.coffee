@@ -110,6 +110,6 @@ test "try/catch with destructuring the exception object", ->
   catch {message}
     message
     
-  eq message, 'missing is not defined'
+  eq message, '"missing" is not defined.'
     
 

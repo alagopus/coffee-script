@@ -1,5 +1,6 @@
 # Assignment
 # ----------
+{RESERVED}   = require './lib/coffee-script/lexer'
 
 # * Assignment
 # * Compound Assignment
@@ -16,7 +17,7 @@ test "context property assignment (using @)", ->
 
 test "unassignable values", ->
   nonce = {}
-  for nonref in ['', '""', '0', 'f()'].concat CoffeeScript.RESERVED
+  for nonref in ['', '""', '0', 'f()'].concat RESERVED
     eq nonce, (try CoffeeScript.compile "#{nonref} = v" catch e then nonce)
 
 # Compound Assignment
@@ -247,7 +248,7 @@ test "#1024", ->
   eq 2 * [] = 3 + 5, 16
 
 test "#1005: invalid identifiers allowed on LHS of destructuring assignment", ->
-  disallowed = ['eval', 'arguments'].concat CoffeeScript.RESERVED
+  disallowed = ['eval', 'arguments'].concat RESERVED
   throws (-> CoffeeScript.compile "[#{disallowed.join ', '}] = x"), null, 'all disallowed'
   throws (-> CoffeeScript.compile "[#{disallowed.join '..., '}...] = x"), null, 'all disallowed as splats'
   t = tSplat = null
@@ -317,7 +318,7 @@ test "#1348, #1216: existential assignment compilation", ->
 
 test "#1591, #1101: splatted expressions in destructuring assignment must be assignable", ->
   nonce = {}
-  for nonref in ['', '""', '0', 'f()', '(->)'].concat CoffeeScript.RESERVED
+  for nonref in ['', '""', '0', 'f()', '(->)'].concat RESERVED
     eq nonce, (try CoffeeScript.compile "[#{nonref}...] = v" catch e then nonce)
 
 test "#1643: splatted accesses in destructuring assignments should not be declared as variables", ->

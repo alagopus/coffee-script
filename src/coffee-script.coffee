@@ -65,19 +65,18 @@ exports.nodes = (source, options) ->
 exports.run = (code, options = {}) ->
   mainModule = require.main
 
-  # Set the filename.
-  mainModule.filename = global.arguments[0] =
-      if options.filename then file.canonical(options.filename) else '.'
+  mainModule.__filename = file.canonical(options.filename) if options.filename?
+  mainModule.__dirname  = file.dirname mainModule.__filename if mainModule.__filename?
 
   # Clear the module cache.
   mainModule.moduleCache and= {}
 
   # Assign paths for node_modules loading
-  mainModule.paths = [ file.dirname file.canonical options.filename ]
+  mainModule.paths = [ mainModule.__dirname ]
 
   # Compile.
-  code = compile(code, options) unless (file.extension(mainModule.filename) not in extensions) or require.extensions
-  compileJS mainModule, code, mainModule.filename
+  code = compile(code, options) unless (options.filename and file.extension(options.filename) not in extensions) or require.extensions
+  compileJS mainModule, code, mainModule.__filename
 
 # Compile and evaluate a string of CoffeeScript.
 # The CoffeeScript REPL uses this to run the input.

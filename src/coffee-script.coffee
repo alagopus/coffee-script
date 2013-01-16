@@ -13,10 +13,17 @@ file      = require 'file'
 # The file extensions that are considered to be CoffeeScript.
 extensions = ['.coffee', '.litcoffee']
 
+iscoffee = exports.iscoffee = (filename) ->
+  not filename or file.extension(filename) in extensions
+
 compileJS = (scope, code, filename) ->
   code = String(code)
   scope = global unless scope?
   Packages.org.mozilla.javascript.Context.getCurrentContext().evaluateString scope, code, filename, 0, null
+
+wrapper = (o) ->
+  wrap = (f) -> f if f.prototype = o
+  new wrap ->
 
 # Load and run a CoffeeScript file for Node, stripping any `BOM`s.
 loadFile = (module, filename) ->
@@ -75,8 +82,12 @@ exports.run = (code, options = {}) ->
   mainModule.paths = [ mainModule.__dirname ]
 
   # Compile.
-  code = compile(code, options) unless (options.filename and file.extension(options.filename) not in extensions) or require.extensions
-  compileJS mainModule, code, mainModule.__filename
+  unless not iscoffee(options.filename) or require.extensions
+    code = compile(code, options)
+  scope = mainModule
+  if options.bare
+    scope = wrapper scope
+  compileJS scope, code, mainModule.__filename
 
 # Compile and evaluate a string of CoffeeScript.
 # The CoffeeScript REPL uses this to run the input.

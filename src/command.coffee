@@ -49,7 +49,6 @@ sources      = []
 sourceCode   = []
 notSources   = {}
 optionParser = null
-coffee_exts  = ['.coffee', '.litcoffee']
 
 # Run `coffee` by parsing passed options and determining what action to take.
 # Many flags cause us to divert before compiling anything. Flags passed after
@@ -74,7 +73,7 @@ exports.run = ->
 # files in it and all subdirectories.
 compilePath = (source, topLevel, base) ->
   if not file.exists source
-    if topLevel and file.extension(source) not in coffee_exts
+    if topLevel and not CoffeeScript.isCoffee(source)
       source = sources[sources.indexOf(source)] = "#{source}.coffee"
       return compilePath source, topLevel, base
     if topLevel
@@ -89,7 +88,7 @@ compilePath = (source, topLevel, base) ->
     sourceCode[index..index] = files.map -> null
     files.forEach (f) ->
       compilePath (file.join source, f), no, base
-  else if topLevel or file.extension(source) in coffee_exts
+  else if topLevel or CoffeeScript.isCoffee(source)
     code = file.read source
     compileScript(source, code.toString(), base)
   else

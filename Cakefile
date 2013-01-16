@@ -156,6 +156,7 @@ runTests = (CoffeeScript) ->
     catch e
       e.description = description if description?
       e.source      = fn.toString() if fn.toString?
+      e.stack = e.rhinoException.scriptStackTrace unless e.stack or not e.rhinoException
       failures.push filename: currentFile, error: e
 
   # See http://wiki.ecmascript.org/doku.php?id=harmony:egal
@@ -202,7 +203,7 @@ runTests = (CoffeeScript) ->
     system.stdout.print ''
     log "  #{error.description}", red if error.description
     log "  #{error.stack}", red if error.stack
-    log "  #{error}", red unless error.stack
+    log "  #{error}", red
     log "  #{jsFilename}: line #{line ? 'unknown'}, column #{col ? 'unknown'}", red
     system.stdout.print "  #{error.source}" if error.source
 

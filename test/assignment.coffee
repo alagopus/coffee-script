@@ -332,6 +332,7 @@ test "#1643: splatted accesses in destructuring assignments should not be declar
         @o = o = new (class C then a:{}); f = -> o
         [#{new Array(i).join('x,')}#{access}...] = [#{new Array(i).join('0,')}nonce, nonce2, nonce3]
         unless #{access}[0] is nonce and #{access}[1] is nonce2 and #{access}[2] is nonce3 then throw new Error('[...]')
+        false
         """
       eq nonce, unless (try CoffeeScript.run code, bare: true catch e then true) then nonce
   # subpatterns like `[[a]...]` and `[{a}...]`
@@ -343,8 +344,10 @@ test "#1643: splatted accesses in destructuring assignments should not be declar
         nonce = {}; nonce2 = {}; nonce3 = {};
         [#{new Array(i).join('x,')}#{subpattern}...] = [#{new Array(i).join('0,')}nonce, nonce2, nonce3]
         unless sub is nonce and sub2 is nonce2 and sub3 is nonce3 then throw new Error('[sub...]')
+        false
         """
       eq nonce, unless (try CoffeeScript.run code, bare: true catch e then true) then nonce
+  nonce
 
 test "#1838: Regression with variable assignment", ->
   name =

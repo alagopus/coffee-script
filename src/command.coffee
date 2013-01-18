@@ -116,8 +116,7 @@ compileScript = (f, input, base) ->
       else if o.compile   then writeJs t.file, t.output, base
       else if o.lint      then lint t.file, t.output
   catch err
-    return if CoffeeScript.listeners('failure').length
-    printWarn err instanceof Error and err.stack or "ERROR: #{err}"
+    printWarn "ERROR: #{err}"
     os.exit 1
 
 # Attach the appropriate listeners to compile scripts incoming over **stdin**,
@@ -155,7 +154,7 @@ outputPath = (source, base) ->
   srcDir    = file.dirname source
   baseDir   = if base is '.' then srcDir else srcDir.substring base.length
   dir       = if opts.output then file.join opts.output, baseDir else srcDir
-  file.join dir, filename
+  file.resolve dir, filename
 
 # Write out a JavaScript source file with the compiled code. By default, files
 # are written out in `cwd` as `.js` files with the same name, but the output

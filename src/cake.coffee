@@ -9,6 +9,7 @@
 # External dependencies.
 fsa0         = require "fs-base"
 file         = require 'file'
+os           = require 'os'
 helpers      = require './helpers'
 optparse     = require './optparse'
 CoffeeScript = require './coffee-script'

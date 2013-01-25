@@ -12,8 +12,8 @@ helpers        = require './helpers'
 optparse       = require './optparse'
 CoffeeScript   = require './coffee-script'
 
-printLine = (line) -> system.stdout.write line + '\n'
-printWarn = (line) -> system.stderr.write line + '\n'
+printLine = (line) -> system.stdout.print line
+printWarn = (line) -> system.stderr.print line
 
 hidden = (f) -> /^\.|~$/.test f
 

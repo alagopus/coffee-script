@@ -1,46 +1,80 @@
 # REPL
 # ----
+Stream = require 'stream'
 
-# TODO: add more tests
-{spawn} = require 'child_process'
-PROMPT  = 'coffee> '
+class MockInputStream extends Stream
+  constructor: ->
+    @readable = true
 
-testOutput = (expected, actual) ->
-  eq expected, actual.slice(0, expected.length)
-  actual.substr expected.length
+  resume: ->
 
-testCommands = (input, expectedOutput) ->
-  input          = [input]          if typeof input is 'string'
-  expectedOutput = [expectedOutput] if typeof expectedOutput in ['string', 'undefined']
-  output         = ''
-  coffee         = spawn 'bin/coffee'
-  input.push 'process.exit()'
+  emitLine: (val) ->
+    @emit 'data', new Buffer("#{val}\n")
 
-  coffee.stdout.on 'data', (data) ->
-    output += data.toString().replace(/\u001b\[\d{0,2}m/g, '')
-    coffee.stdin.write "#{input.shift()}\n"
+class MockOutputStream extends Stream
+  constructor: ->
+    @writable = true
+    @written = []
 
-  coffee.on 'exit', ->
-    output = testOutput PROMPT, output
-    while expectedOutput.length > 0
-      output = testOutput "#{expectedOutput.shift()}\n#{PROMPT}", output
-    eq '', output
+  write: (data) ->
+    #console.log 'output write', arguments
+    @written.push data
 
-test "comments are ignored", ->
-  testCommands "1 + 1 #foo", "2"
+  lastWrite: (fromEnd = -1) ->
+    @written[@written.length - 1 + fromEnd].replace /\n$/, ''
 
-test "output in inspect mode", ->
-  testCommands '"1 + 1\\n"', "'1 + 1\\n'"
 
-test "variables are saved", ->
-  input = [
-    "foo = 'foo'"
-    'foobar = "#{foo}bar"'
-  ]
-  testCommands input, [
-    "'foo'"
-    "'foobar'"
-  ]
+testRepl = (desc, fn) ->
+  input = new MockInputStream
+  output = new MockOutputStream
+  Repl.start {input, output}
+  test desc, -> fn input, output
 
-test "empty command evaluates to undefined", ->
-  testCommands "", undefined
+ctrlV = { ctrl: true, name: 'v'}
+
+
+testRepl "starts with coffee prompt", (input, output) ->
+  eq 'coffee> ', output.lastWrite(0)
+
+testRepl "writes eval to output", (input, output) ->
+  input.emitLine '1+1'
+  eq '2', output.lastWrite()
+
+testRepl "comments are ignored", (input, output) ->
+  input.emitLine '1 + 1 #foo'
+  eq '2', output.lastWrite()
+
+testRepl "output in inspect mode", (input, output) ->
+  input.emitLine '"1 + 1\\n"'
+  eq "'1 + 1\\n'", output.lastWrite()
+
+testRepl "variables are saved", (input, output) ->
+  input.emitLine "foo = 'foo'"
+  input.emitLine 'foobar = "#{foo}bar"'
+  eq "'foobar'", output.lastWrite()
+
+testRepl "empty command evaluates to undefined", (input, output) ->
+  input.emitLine ''
+  eq 'undefined', output.lastWrite()
+
+testRepl "ctrl-v toggles multiline prompt", (input, output) ->
+  input.emit 'keypress', null, ctrlV
+  eq '------> ', output.lastWrite(0)
+  input.emit 'keypress', null, ctrlV
+  eq 'coffee> ', output.lastWrite(0)
+
+testRepl "multiline continuation changes prompt", (input, output) ->
+  input.emit 'keypress', null, ctrlV
+  input.emitLine ''
+  eq '....... ', output.lastWrite(0)
+
+testRepl "evaluates multiline", (input, output) ->
+  # Stubs. Could assert on their use.
+  output.cursorTo = (pos) ->
+  output.clearLine = ->
+
+  input.emit 'keypress', null, ctrlV
+  input.emitLine 'do ->'
+  input.emitLine '  1 + 1'
+  input.emit 'keypress', null, ctrlV
+  eq '2', output.lastWrite()

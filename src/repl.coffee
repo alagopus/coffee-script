@@ -6,22 +6,19 @@ CoffeeScript = require './coffee-script'
 replDefaults =
   prompt: 'coffee> ',
   eval: (input, context, filename, cb) ->
+    # XXX: multiline hack
+    input = input.replace /\uFF00/g, '\n'
+    # strip single-line comments
+    input = input.replace /(^|[\r\n]+)(\s*)##?(?:[^#\r\n][^\r\n]*|)($|[\r\n])/, '$1$2$3'
+    # empty command
+    return cb null if /^\s*$/.test input
+    # TODO: fix #1829: pass in-scope vars and avoid accidentally shadowing them by omitting those declarations
     try
-      # XXX: multiline hack
-      input = input.replace /\uFF00/g, '\n'
-      # strip node-added parens
-      input = input[1...-1]
-      # strip single-line comments
-      input = input.replace /(^|[\r\n]+)(\s*)##?(?:[^#\r\n][^\r\n]*|)($|[\r\n])/, '$1$2$3'
-      # empty command
-      return cb null if /^\s*$/.test input
-      # TODO: fix #1829: pass in-scope vars and avoid accidentally shadowing them by omitting those declarations
-      js = CoffeeScript.compile "[]=(#{input}\n)", {filename, bare: yes}
-      cb null, vm.runInContext js, context, filename
+      js = CoffeeScript.compile "_=(#{input}\n)", {filename, bare: yes}
     catch err
       cb err
+    cb null, vm.runInContext(js, context, filename)
 
-# TODO: how to test?
 addMultilineHandler = (repl) ->
   {rli, inputStream, outputStream} = repl
 
@@ -40,7 +37,7 @@ addMultilineHandler = (repl) ->
       rli.setPrompt multiline.prompt
       rli.prompt true
     else
-      nodeLineListener(cmd)
+      nodeLineListener cmd
     return
 
   # Handle Ctrl-v
@@ -54,7 +51,7 @@ addMultilineHandler = (repl) ->
         rli.prompt true
         return
       # no-op unless the current line is empty
-      return unless rli.line.match /^\s*$/
+      return if rli.line? and not rli.line.match /^\s*$/
       # eval, print, loop
       multiline.enabled = not multiline.enabled
       rli.line = ''

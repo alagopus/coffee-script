@@ -1,5 +1,7 @@
 #! /bin/sh
-bin=${0%/*}
+bin="$0"
+while [ -L "$bin" ]; do bin=$(dirname "$bin")/$(readlink "$bin"); done
+bin=$(cd $(dirname $bin) && pwd -P)
 top=$bin/..
 if [ ! -d $top/lib/coffee-script ]; then top=$top/packages/coffee-script; fi
 cp=$top/jar/js.jar:$top/jar/jna-3.5.1.jar:$top/jar/platform-3.5.1.jar 

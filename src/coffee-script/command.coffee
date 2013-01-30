@@ -8,6 +8,7 @@
 fsa0           = require 'fs-base'
 file           = require 'file'
 os             = require 'os'
+system         = require 'system'
 helpers        = require './helpers'
 optparse       = require './optparse'
 CoffeeScript   = require './coffee-script'

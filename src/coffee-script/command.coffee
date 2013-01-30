@@ -34,7 +34,6 @@ SWITCHES = [
   ['-j', '--join [FILE]',     'concatenate the source CoffeeScript before compiling']
   ['-l', '--lint',            'pipe the compiled JavaScript through JavaScript Lint']
   ['-n', '--nodes',           'print out the parse tree that the parser produces']
-  [      '--nodejs [ARGS]',   'pass options directly to the "node" binary']
   ['-o', '--output [DIR]',    'set the output directory for compiled JavaScript']
   ['-p', '--print',           'print out the compiled JavaScript']
   ['-r', '--require [FILE*]', 'require a library before executing your script']
@@ -55,7 +54,6 @@ optionParser = null
 # `--` will be passed verbatim to your script as arguments in `global.arguments`
 exports.run = ->
   parseOptions()
-  return forkNode()                      if opts.nodejs
   return usage()                         if opts.help
   return version()                       if opts.version
   loadRequires()                         if opts.require
@@ -73,7 +71,7 @@ exports.run = ->
 # files in it and all subdirectories.
 compilePath = (source, topLevel, base) ->
   if not file.exists source
-    if topLevel and not CoffeeScript.isCoffee(source)
+    if topLevel and not CoffeeScript.iscoffee(source)
       source = sources[sources.indexOf(source)] = "#{source}.coffee"
       return compilePath source, topLevel, base
     if topLevel
@@ -88,7 +86,7 @@ compilePath = (source, topLevel, base) ->
     sourceCode[index..index] = files.map -> null
     files.forEach (f) ->
       compilePath (file.join source, f), no, base
-  else if topLevel or CoffeeScript.isCoffee(source)
+  else if topLevel or CoffeeScript.iscoffee(source)
     code = file.read source
     compileScript(source, code.toString(), base)
   else
@@ -202,14 +200,6 @@ parseOptions = ->
 compileOptions = (filename) ->
   literate = file.extension(filename) is '.litcoffee'
   {filename, literate, bare: opts.bare, header: opts.compile}
-
-# Start up a new Node.js instance with the arguments in `--nodejs` passed to
-# the `node` binary, preserving the other options.
-forkNode = ->
-  nodeArgs = opts.nodejs.split /\s+/
-  args     = global.arguments
-  args.splice args.indexOf('--nodejs'), 2
-  os.system nodeArgs.concat(args)
 
 # Print the `--help` usage message and exit. Deprecated switches are not
 # shown.

@@ -1,0 +1,8 @@
+#! /bin/sh
+bin=${0%/*}
+top=$bin/..
+if [ ! -d $top/lib/coffee-script ]; then top=$top/packages/coffee-script; fi
+cp=$top/jar/js.jar:$top/jar/jna-3.5.1.jar:$top/jar/platform-3.5.1.jar 
+#main="org.mozilla.javascript.tools.debugger.Main"
+main="-Djava.awt.headless=true org.mozilla.javascript.tools.shell.Main"
+exec java -cp $cp $main -version 180 -modules $top/lib/commonjs -modules $top/lib/coffee-script "$@"

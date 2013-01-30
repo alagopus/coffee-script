@@ -5,6 +5,7 @@
 #     coffee> system.stdout.print "#{num} bottles of beer" for num in [99..1]
 
 # Start by opening up `stdin` and `stdout`.
+system = require 'system'
 stdin = system.stdin
 stdout = system.stdout
 

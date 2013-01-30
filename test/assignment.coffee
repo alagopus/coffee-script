@@ -322,7 +322,6 @@ test "#1591, #1101: splatted expressions in destructuring assignment must be ass
     eq nonce, (try CoffeeScript.compile "[#{nonref}...] = v" catch e then nonce)
 
 test "#1643: splatted accesses in destructuring assignments should not be declared as variables", ->
-  nonce = {}
   accesses = ['o.a', 'o["a"]', '(o.a)', '(o.a).a', '@o.a', 'C::a', 'C::', 'f().a', 'o?.a', 'o?.a.b', 'f?().a']
   for access in accesses
     for i,j in [1,2,3] #position can matter
@@ -331,10 +330,10 @@ test "#1643: splatted accesses in destructuring assignments should not be declar
         nonce = {}; nonce2 = {}; nonce3 = {};
         @o = o = new (class C then a:{}); f = -> o
         [#{new Array(i).join('x,')}#{access}...] = [#{new Array(i).join('0,')}nonce, nonce2, nonce3]
-        unless #{access}[0] is nonce and #{access}[1] is nonce2 and #{access}[2] is nonce3 then throw new Error('[...]')
-        false
+        if #{access}[0] is nonce and #{access}[1] is nonce2 and #{access}[2] is nonce3 then true
+        else throw new Error('#{access} #{i}')
         """
-      eq nonce, unless (try CoffeeScript.run code, bare: true catch e then true) then nonce
+      ok CoffeeScript.run code, bare: true
   # subpatterns like `[[a]...]` and `[{a}...]`
   subpatterns = ['[sub, sub2, sub3]', '{0: sub, 1: sub2, 2: sub3}']
   for subpattern in subpatterns
@@ -343,11 +342,11 @@ test "#1643: splatted accesses in destructuring assignments should not be declar
         """
         nonce = {}; nonce2 = {}; nonce3 = {};
         [#{new Array(i).join('x,')}#{subpattern}...] = [#{new Array(i).join('0,')}nonce, nonce2, nonce3]
-        unless sub is nonce and sub2 is nonce2 and sub3 is nonce3 then throw new Error('[sub...]')
-        false
+        if sub is nonce and sub2 is nonce2 and sub3 is nonce3 then true
+        else throw new Error('[sub #{subpattern} #{i}]')
         """
-      eq nonce, unless (try CoffeeScript.run code, bare: true catch e then true) then nonce
-  nonce
+      ok CoffeeScript.run code, bare: true
+  null
 
 test "#1838: Regression with variable assignment", ->
   name =

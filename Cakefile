@@ -1,7 +1,8 @@
 file          = require 'file'
 os            = require 'os'
-{extend}      = require './lib/coffee-script/helpers'
-CoffeeScript  = require './lib/coffee-script/coffee-script'
+system        = require 'system'
+{extend}      = require 'helpers'
+CoffeeScript  = require 'coffee-script'
 
 # ANSI Terminal Colors.
 enableColors = no
@@ -26,14 +27,16 @@ header = """
    */
 """
 
+coffeesrc = 'src/coffee-script'
+
 sources = [
   'coffee-script', 'grammar', 'helpers'
   'lexer', 'nodes', 'rewriter', 'scope'
-].map (filename) -> "src/#{filename}.coffee"
+].map (filename) -> "#{coffeesrc}/#{filename}.coffee"
 
 # Run a CoffeeScript through our interpreter.
 run = (args, cb) ->
-  status = os.system ['narwhal', 'bin/coffee'].concat(args)
+  status = os.system ['bin/coffee'].concat(args)
   os.exit(1) if status != 0
   cb() if typeof cb is 'function'
 
@@ -44,10 +47,11 @@ log = (message, color, explanation) ->
 option '-p', '--prefix [DIR]', 'set the installation prefix for `cake install`'
 
 task 'build', 'build the CoffeeScript language from source', build = (cb) ->
-  files = file.list 'src'
-  files = ('src/' + f for f in files when f.match(/\.(lit)?coffee$/))
-  run ['-c', '-o', 'lib/coffee-script'].concat(files), cb
-
+  filter = (f) -> f.match /\.(lit)?coffee$/
+  allsrc = (d) -> (d + '/' + f for f in (file.list d) when filter(f))
+  for dir in [coffeesrc, 'src/commonjs']
+    out = dir.replace /src\//, 'lib/'
+    run ['-c', '-o', out].concat(allsrc dir), cb
 
 task 'build:full', 'rebuild the source twice, and run the tests', ->
   build ->
@@ -101,7 +105,7 @@ task 'doc:site', 'watch and continually rebuild the documentation for the websit
 
 
 task 'doc:source', 'rebuild the internal documentation', ->
-  os.system 'docco src/*.coffee && cp -rf docs documentation && rm -r docs'
+  os.system 'docco '+coffeesrc+'/*.coffee && cp -rf docs documentation && rm -r docs'
 
 
 task 'doc:underscore', 'rebuild the Underscore.coffee documentation page', ->

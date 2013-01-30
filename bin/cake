@@ -1,3 +1,5 @@
-#!/usr/bin/env narwhal
-
-require(require('./coffee').lib(system.args[0]) + '/cake').run();
+#! /bin/sh
+bin=${0%/*}
+top=$bin/..
+if [ ! -d $top/lib/coffee-script ]; then top=$top/packages/coffee-script; fi
+exec $bin/rhino $top/lib/coffee-script/cake-run.js "$@"

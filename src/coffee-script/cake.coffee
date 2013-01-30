@@ -10,6 +10,7 @@
 fsa0         = require "fs-base"
 file         = require 'file'
 os           = require 'os'
+system       = require 'system'
 helpers      = require './helpers'
 optparse     = require './optparse'
 CoffeeScript = require './coffee-script'
@@ -19,6 +20,7 @@ tasks     = {}
 options   = {}
 switches  = []
 oparse    = null
+originalDirname = '.'
 
 # Mixin the top-level Cake functions for Cakefiles to use directly.
 helpers.extend global,
@@ -45,10 +47,11 @@ helpers.extend global,
 # If no tasks are passed, print the help screen. Keep a reference to the
 # original directory name, when running Cake tasks from subdirectories.
 exports.run = ->
-  global.__originalDirname = file.canonical '.'
-  fsa0.changeWorkingDirectory cakefileDirectory __originalDirname
-  args = global.arguments[1..]
-  CoffeeScript.run file.read('Cakefile').toString(), filename: 'Cakefile .coffee'
+  originalDirname = file.canonical '.'
+  fsa0.changeWorkingDirectory cakefileDirectory originalDirname
+  args = system.args[1..]
+  CoffeeScript.run file.read('Cakefile').toString(),
+    filename: 'Cakefile .coffee'
   oparse = new optparse.OptionParser switches
   return printTasks() unless args.length
   try
@@ -59,7 +62,7 @@ exports.run = ->
 
 # Display the list of Cake tasks in a format similar to `rake -T`
 printTasks = ->
-  cakefilePath = file.join file.relative(__originalDirname, fsa0.workingDirectory()), 'Cakefile'
+  cakefilePath = file.join file.relative(originalDirname, fsa0.workingDirectory()), 'Cakefile'
   system.stdout.print "#{cakefilePath} defines the following tasks:\n"
   for name, task of tasks
     spaces = 20 - name.length

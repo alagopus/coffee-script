@@ -37,7 +37,6 @@ SWITCHES = [
   ['-n', '--nodes',           'print out the parse tree that the parser produces']
   ['-o', '--output [DIR]',    'set the output directory for compiled JavaScript']
   ['-p', '--print',           'print out the compiled JavaScript']
-  ['-r', '--require [FILE*]', 'require a library before executing your script']
   ['-s', '--stdio',           'listen for and compile scripts over stdio']
   ['-t', '--tokens',          'print out the tokens that the lexer/rewriter produce']
   ['-v', '--version',         'display the version number']
@@ -57,7 +56,6 @@ exports.run = ->
   parseOptions()
   return usage()                         if opts.help
   return version()                       if opts.version
-  loadRequires()                         if opts.require
   return require './repl'                if opts.interactive
   return compileStdio()                  if opts.stdio
   return compileScript null, sources[0]  if opts.eval
@@ -132,13 +130,6 @@ compileJoin = ->
     clearTimeout joinTimeout
     joinTimeout = wait 100, ->
       compileScript opts.join, sourceCode.join('\n'), opts.join
-
-# Load files that are to-be-required before compilation occurs.
-loadRequires = ->
-  realFilename = module.filename
-  module.filename = '.'
-  require req for req in opts.require
-  module.filename = realFilename
 
 # Remove a file from our source list, and source code cache. Optionally remove
 # the compiled JS version as well.

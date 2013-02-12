@@ -5,12 +5,8 @@ system        = require 'system'
 CoffeeScript  = require 'coffee-script'
 
 # ANSI Terminal Colors.
-enableColors = no
-unless system.os is 'win32'
-  enableColors = not system.env.NODE_DISABLE_COLORS
-
 bold = red = green = reset = ''
-if enableColors
+unless system.env.NODE_DISABLE_COLORS
   bold  = '\x1B[0;1m'
   red   = '\x1B[0;31m'
   green = '\x1B[0;32m'
@@ -127,9 +123,6 @@ task 'bench', 'quick benchmark of compilation time', ->
   js     = nodes.compile bare: true
   system.stdout.print "Compile#{time()} (#{js.length} chars)"
   system.stdout.print "total  #{ fmt total }"
-
-task 'loc', 'count the lines of source code in the CoffeeScript compiler', ->
-  os.system "cat #{ sources.join(' ') } | grep -v '^\\( *#\\|\\s*$\\)' | wc -l | tr -s ' '"
 
 
 # Run the CoffeeScript test suite.

@@ -59,3 +59,64 @@ exports.last = (array, back) -> array[array.length - (back or 0) - 1]
 exports.some = Array::some ? (fn) ->
   return true for e in this when fn e
   false
+
+# Simple function for inverting Literate CoffeeScript code by putting the
+# documentation in comments, and bumping the actual code back out to the edge ...
+# producing a string of CoffeeScript code that can be compiled "normally".
+exports.invertLiterate = (code) ->
+  lines = for line in code.split('\n')
+    if match = (/^([ ]{4}|\t)/).exec line
+      line[match[0].length..]
+    else
+      '# ' + line
+  lines.join '\n'
+
+# Merge two jison-style location data objects together.
+# If `last` is not provided, this will simply return `first`.
+buildLocationData = (first, last) ->
+  if not last
+    first
+  else
+    first_line: first.first_line
+    first_column: first.first_column
+    last_line: last.last_line
+    last_column: last.last_column
+
+# This returns a function which takes an object as a parameter, and if that object is an AST node,
+# updates that object's locationData.  The object is returned either way.
+exports.addLocationDataFn = (first, last) ->
+    (obj) ->
+      if ((typeof obj) is 'object') and (!!obj['updateLocationDataIfMissing'])
+        obj.updateLocationDataIfMissing buildLocationData(first, last)
+
+      return obj
+
+# Convert jison location data to a string.
+# `obj` can be a token, or a locationData.
+exports.locationDataToString = (obj) ->
+    if ("2" of obj) and ("first_line" of obj[2]) then locationData = obj[2]
+    else if "first_line" of obj then locationData = obj
+
+    if locationData
+      "#{locationData.first_line + 1}:#{locationData.first_column + 1}-" +
+      "#{locationData.last_line + 1}:#{locationData.last_column + 1}"
+    else
+      "No location data"
+
+# A `.coffee.md` compatible version of `basename`, that returns the file sans-extension.
+exports.baseFileName = (file, stripExt = no) ->
+  parts = file.split('/')
+  file = parts[parts.length - 1]
+  return file unless stripExt
+  parts = file.split('.')
+  parts.pop()
+  parts.pop() if parts[parts.length - 1] is 'coffee'
+  parts.join('.')
+
+# Determine if a filename represents a CoffeeScript file.
+exports.isCoffee = (file) -> /\.((lit)?coffee|coffee\.md)$/.test file
+
+# Determine if a filename represents a Literate CoffeeScript file.
+exports.isLiterate = (file) -> /\.(litcoffee|coffee\.md)$/.test file
+
+

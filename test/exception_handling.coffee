@@ -109,14 +109,8 @@ test "try/catch with destructuring the exception object", ->
     missing.object
   catch {message}
     message
-<<<<<<< HEAD
     
   eq message, '"missing" is not defined.'
-    
-=======
-
-  eq message, 'missing is not defined'
->>>>>>> master
 
 
 

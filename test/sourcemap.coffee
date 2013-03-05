@@ -1,6 +1,6 @@
 return if global.testingBrowser
 
-sourcemap = require '../src/sourcemap'
+sourcemap = require './lib/coffee-script/sourcemap'
 
 vlqEncodedValues = [
     [1, "C"],

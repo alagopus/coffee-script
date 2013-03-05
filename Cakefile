@@ -1,7 +1,7 @@
 file          = require 'file'
 os            = require 'os'
 system        = require 'system'
-{extend}      = require 'helpers'
+helpers       = require 'helpers'
 CoffeeScript  = require 'coffee-script'
 
 # ANSI Terminal Colors.
@@ -59,7 +59,7 @@ task 'build:full', 'rebuild the source twice, and run the tests', ->
 
 
 task 'build:parser', 'rebuild the Jison parser (run build first)', ->
-  extend global, require('util')
+  helpers.extend global, require('util')
   require 'jison'
   parser = require('./lib/coffee-script/grammar').parser
   file.write 'lib/coffee-script/parser.js', parser.generate()
@@ -67,7 +67,7 @@ task 'build:parser', 'rebuild the Jison parser (run build first)', ->
 
 task 'build:browser', 'rebuild the merged script for inclusion in the browser', ->
   code = ''
-  for name in ['helpers', 'rewriter', 'lexer', 'parser', 'scope', 'nodes', 'coffee-script', 'browser']
+  for name in ['helpers', 'rewriter', 'lexer', 'parser', 'scope', 'nodes', 'sourcemap', 'coffee-script', 'browser']
     code += """
       require['./#{name}'] = new function() {
         var exports = this;

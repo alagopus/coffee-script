@@ -34,6 +34,7 @@ SWITCHES = [
   ['-i', '--interactive',     'run an interactive CoffeeScript REPL']
   ['-j', '--join [FILE]',     'concatenate the source CoffeeScript before compiling']
   ['-l', '--lint',            'pipe the compiled JavaScript through JavaScript Lint']
+  ['-m', '--map',             'generate source map and save as .map files']
   ['-n', '--nodes',           'print out the parse tree that the parser produces']
   ['-o', '--output [DIR]',    'set the output directory for compiled JavaScript']
   ['-p', '--print',           'print out the compiled JavaScript']
@@ -51,7 +52,7 @@ optionParser = null
 
 # Run `coffee` by parsing passed options and determining what action to take.
 # Many flags cause us to divert before compiling anything. Flags passed after
-# `--` will be passed verbatim to your script as arguments in `global.arguments`
+# `--` will be passed verbatim to your script as arguments in `process.argv`
 exports.run = ->
   parseOptions()
   return usage()                         if opts.help
@@ -66,8 +67,8 @@ exports.run = ->
     compilePath source, yes, file.resolve source
 
 # Compile a path, which could be a script or a directory. If a directory
-# is passed, recursively compile all '.coffee' and '.litcoffee' extension source
-# files in it and all subdirectories.
+# is passed, recursively compile all '.coffee', '.litcoffee', and '.coffee.md'
+# extension source files in it and all subdirectories.
 compilePath = (source, topLevel, base) ->
   if not file.exists source
     if topLevel and not CoffeeScript.iscoffee(source)
@@ -105,13 +106,22 @@ compileScript = (f, input, base) ->
     else if o.nodes       then printLine CoffeeScript.nodes(t.input, t.options).toString().trim()
     else if o.run         then CoffeeScript.run t.input, t.options
     else if o.join and t.file isnt o.join
+      t.input = helpers.invertLiterate t.input if helpers.isLiterate file
       sourceCode[sources.indexOf(t.file)] = t.input
       compileJoin()
     else
-      t.output = CoffeeScript.compile t.input, t.options
-      if o.print          then printLine t.output.trim()
-      else if o.compile   then writeJs t.file, t.output, base
-      else if o.lint      then lint t.file, t.output
+      compiled = CoffeeScript.compile t.input, t.options
+      t.output = compiled
+      if o.map
+        t.output = compiled.js
+        t.sourceMap = compiled.v3SourceMap
+
+      if o.print
+        printLine t.output.trim()
+      else if o.compile || o.map
+        writeJs base, t.file, t.output, t.sourceMap
+      else if o.lint
+        lint t.file, t.output
   catch err
     printWarn "ERROR: #{err}"
     os.exit 1
@@ -139,8 +149,8 @@ removeSource = (source, base) ->
   sourceCode.splice index, 1
 
 # Get the corresponding output JavaScript path for a source file.
-outputPath = (source, base) ->
-  filename  = file.basename(source, file.extension(source)) + '.js'
+outputPath = (source, base, extension='.js') ->
+  filename  = file.basename(source, file.extension(source)) + extension
   srcDir    = file.dirname source
   baseDir   = if base is '.' then srcDir else srcDir.substring base.length
   dir       = if opts.output then file.join opts.output, baseDir else srcDir
@@ -149,14 +159,24 @@ outputPath = (source, base) ->
 # Write out a JavaScript source file with the compiled code. By default, files
 # are written out in `cwd` as `.js` files with the same name, but the output
 # directory can be customized with `--output`.
-writeJs = (source, js, base) ->
+# If `generatedSourceMap` is provided, this will write a `.map` file into the
+# same directory as the `.js` file.
+writeJs = (base, source, js, generatedSourceMap = null) ->
   jsPath = outputPath source, base
+  sourceMapPath = outputPath source, base, ".map"
   jsDir  = file.dirname jsPath
   js = ' ' if js.length <= 0
+  if generatedSourceMap
+    file.write sourceMapPath, generatedSourceMap
+    js = "#{js}\n/*\n//@ sourceMappingURL=#{helpers.baseFileName sourceMapPath}\n*/\n"
   file.write jsPath, js
 
 # Convenience for cleaner setTimeouts.
 wait = (milliseconds, func) -> setTimeout func, milliseconds
+
+# When watching scripts, it's useful to log changes with the timestamp.
+timeLog = (message) ->
+  console.log "#{(new Date).toLocaleTimeString()} - #{message}"
 
 # Pipe compiled JS through JSLint (requires a working `jsl` command), printing
 # any errors or warnings that arise.
@@ -169,10 +189,11 @@ lint = (f, js) ->
   jsl.stdin.write js
   jsl.stdin.end()
 
-# Pretty-print a stream of tokens.
+# Pretty-print a stream of tokens, sans location data.
 printTokens = (tokens) ->
   strings = for token in tokens
-    [tag, value] = [token[0], token[1].toString().replace(/\n/, '\\n')]
+    tag = token[0]
+    value = token[1].toString().replace(/\n/, '\\n')
     "[#{tag} #{value}]"
   printLine strings.join(' ')
 
@@ -182,7 +203,7 @@ parseOptions = ->
   optionParser  = new optparse.OptionParser SWITCHES, BANNER
   o = opts      = optionParser.parse global.arguments[1..]
   o.compile     or=  !!o.output
-  o.run         = not (o.compile or o.print or o.lint)
+  o.run         = not (o.compile or o.print or o.lint or o.map)
   o.print       = !!  (o.print or (o.eval or o.stdio and o.compile))
   sources       = o.arguments
   sourceCode[i] = null for source, i in sources
@@ -191,7 +212,7 @@ parseOptions = ->
 # The compile-time options to pass to the CoffeeScript compiler.
 compileOptions = (filename) ->
   literate = file.extension(filename) is '.litcoffee'
-  {filename, literate, bare: opts.bare, header: opts.compile}
+  {filename, literate, bare: opts.bare, header: opts.compile, sourceMap: opts.map}
 
 # Print the `--help` usage message and exit. Deprecated switches are not
 # shown.

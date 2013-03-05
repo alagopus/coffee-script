@@ -24,6 +24,10 @@ header = """
 """
 
 coffeesrc = 'src/coffee-script'
+if /^windows/i.test system.env['os.name']
+    coffeeexe = ['cmd.exe', '/c', 'bin\\coffee.cmd']
+else
+    coffeeexe = ['bin/coffee']
 
 sources = [
   'coffee-script', 'grammar', 'helpers'
@@ -32,7 +36,8 @@ sources = [
 
 # Run a CoffeeScript through our interpreter.
 run = (args, cb) ->
-  status = os.system ['bin/coffee'].concat(args)
+  args = coffeeexe.concat(args)
+  status = os.system args
   os.exit(1) if status != 0
   cb() if typeof cb is 'function'
 

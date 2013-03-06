@@ -201,7 +201,7 @@ printTokens = (tokens) ->
 # `global.arguments` that are specified in `SWITCHES`.
 parseOptions = ->
   optionParser  = new optparse.OptionParser SWITCHES, BANNER
-  o = opts      = optionParser.parse global.arguments[1..]
+  o = opts      = optionParser.parse global.arguments
   o.compile     or=  !!o.output
   o.run         = not (o.compile or o.print or o.lint or o.map)
   o.print       = !!  (o.print or (o.eval or o.stdio and o.compile))

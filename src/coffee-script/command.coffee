@@ -41,6 +41,7 @@ SWITCHES = [
   ['-s', '--stdio',           'listen for and compile scripts over stdio']
   ['-t', '--tokens',          'print out the tokens that the lexer/rewriter produce']
   ['-v', '--version',         'display the version number']
+  ['-x', '--extension [ext]', 'use this extension for the JavaScript file instead of .js (must be used before e.g. -m flag)']
 ]
 
 # Top-level objects shared by all the functions.
@@ -100,6 +101,8 @@ compilePath = (source, topLevel, base) ->
 compileScript = (f, input, base) ->
   o = opts
   options = compileOptions f
+  printLine "o..."
+  printLine("o[#{property}] is #{o[property]}") for property of o
   try
     t = {file: f, input, options}
     if      o.tokens      then printTokens CoffeeScript.tokens t.input, t.options
@@ -162,7 +165,7 @@ outputPath = (source, base, extension='.js') ->
 # If `generatedSourceMap` is provided, this will write a `.map` file into the
 # same directory as the `.js` file.
 writeJs = (base, source, js, generatedSourceMap = null) ->
-  jsPath = outputPath source, base
+  jsPath = outputPath source, base, opts.extension
   sourceMapPath = outputPath source, base, ".map"
   jsDir  = file.dirname jsPath
   js = ' ' if js.length <= 0

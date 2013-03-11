@@ -5,13 +5,13 @@
 # interactive REPL.
 
 # External dependencies.
-fs                = require 'fs'
-path              = require 'path'
-helpers           = require './helpers'
-optparse          = require './optparse'
-CoffeeScript      = require './coffee-script'
-{spawn, exec}     = require 'child_process'
-{EventEmitter}    = require 'events'
+fs             = require 'fs'
+path           = require 'path'
+helpers        = require './helpers'
+optparse       = require './optparse'
+CoffeeScript   = require './coffee-script'
+{spawn, exec}  = require 'child_process'
+{EventEmitter} = require 'events'
 
 exists         = fs.exists or path.exists
 
@@ -112,9 +112,9 @@ compilePath = (source, topLevel, base) ->
 # Compile a single source script, containing the given code, according to the
 # requested options. If evaluating the script directly sets `__filename`,
 # `__dirname` and `module.filename` to be correct relative to the script's path.
-compileScript = (file, input, base) ->
+compileScript = (file, input, base=null) ->
   o = opts
-  options = compileOptions file
+  options = compileOptions file, base
   try
     t = task = {file, input, options}
     CoffeeScript.emit 'compile', task
@@ -136,15 +136,19 @@ compileScript = (file, input, base) ->
       if o.print
         printLine t.output.trim()
       else if o.compile || o.map
-        writeJs base, t.file, t.output, t.sourceMap
+        writeJs base, t.file, t.output, options.jsPath, t.sourceMap
       else if o.lint
         lint t.file, t.output
   catch err
     CoffeeScript.emit 'failure', err, task
     return if CoffeeScript.listeners('failure').length
-    return printLine err.message + '\x07' if o.watch
-    printWarn err instanceof Error and err.stack or "ERROR: #{err}"
-    process.exit 1
+    useColors = process.stdout.isTTY and not process.env.NODE_DISABLE_COLORS
+    message = helpers.prettyErrorMessage err, file or '[stdin]', input, useColors
+    if o.watch
+      printLine message + '\x07'
+    else
+      printWarn message
+      process.exit 1
 
 # Attach the appropriate listeners to compile scripts incoming over **stdin**,
 # and write them back to **stdout**.
@@ -264,8 +268,7 @@ outputPath = (source, base, extension=".js") ->
 #
 # If `generatedSourceMap` is provided, this will write a `.map` file into the
 # same directory as the `.js` file.
-writeJs = (base, sourcePath, js, generatedSourceMap = null) ->
-  jsPath = outputPath sourcePath, base
+writeJs = (base, sourcePath, js, jsPath, generatedSourceMap = null) ->
   sourceMapPath = outputPath sourcePath, base, ".map"
   jsDir  = path.dirname jsPath
   compile = ->
@@ -323,14 +326,31 @@ parseOptions = ->
   return
 
 # The compile-time options to pass to the CoffeeScript compiler.
-compileOptions = (filename) ->
-  {
+compileOptions = (filename, base) ->
+  answer = {
     filename
     literate: helpers.isLiterate(filename)
     bare: opts.bare
     header: opts.compile
     sourceMap: opts.map
   }
+  if filename
+    if base
+      cwd = process.cwd()
+      jsPath = outputPath filename, base
+      jsDir = path.dirname jsPath
+      answer = helpers.merge answer, {
+        jsPath
+        sourceRoot: path.relative jsDir, cwd
+        sourceFiles: [path.relative cwd, filename]
+        generatedFile: helpers.baseFileName(jsPath)
+      }
+    else
+      answer = helpers.merge answer,
+        sourceRoot: ""
+        sourceFiles: [helpers.baseFileName filename]
+        generatedFile: helpers.baseFileName(filename, yes) + ".js"
+  answer
 
 # Start up a new Node.js instance with the arguments in `--nodejs` passed to
 # the `node` binary, preserving the other options.

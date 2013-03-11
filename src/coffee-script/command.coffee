@@ -100,7 +100,7 @@ compilePath = (source, topLevel, base) ->
 # `__dirname` and `module.filename` to be correct relative to the script's path.
 compileScript = (f, input, base) ->
   o = opts
-  options = compileOptions f
+  options = compileOptions f, base
   try
     t = {file: f, input, options}
     if      o.tokens      then printTokens CoffeeScript.tokens t.input, t.options
@@ -120,11 +120,12 @@ compileScript = (f, input, base) ->
       if o.print
         printLine t.output.trim()
       else if o.compile || o.map
-        writeJs base, t.file, t.output, t.sourceMap
+        writeJs base, t.file, t.output, options.jsPath, t.sourceMap
       else if o.lint
         lint t.file, t.output
   catch err
-    printWarn "ERROR: #{err}"
+    message = helpers.prettyErrorMessage err, file or '[stdin]', input
+    printWarn message
     os.exit 1
 
 # Attach the appropriate listeners to compile scripts incoming over **stdin**,
@@ -150,7 +151,7 @@ removeSource = (source, base) ->
   sourceCode.splice index, 1
 
 # Get the corresponding output JavaScript path for a source file.
-outputPath = (source, base, extension='.js') ->
+outputPath = (source, base='.', extension='.js') ->
   filename  = file.basename(source, file.extension(source)) + extension
   srcDir    = file.dirname source
   baseDir   = if base is '.' then srcDir else srcDir.substring base.length
@@ -162,8 +163,7 @@ outputPath = (source, base, extension='.js') ->
 # directory can be customized with `--output`.
 # If `generatedSourceMap` is provided, this will write a `.map` file into the
 # same directory as the `.js` file.
-writeJs = (base, source, js, generatedSourceMap = null) ->
-  jsPath = outputPath source, base, opts.extension
+writeJs = (base, source, js, jsPath, generatedSourceMap = null) ->
   sourceMapPath = outputPath source, base, ".map"
   jsDir  = file.dirname jsPath
   js = ' ' if js.length <= 0
@@ -211,9 +211,15 @@ parseOptions = ->
   return
 
 # The compile-time options to pass to the CoffeeScript compiler.
-compileOptions = (filename) ->
+compileOptions = (filename, base) ->
   literate = file.extension(filename) is '.litcoffee'
-  {filename, literate, bare: opts.bare, header: opts.compile, sourceMap: opts.map}
+  answer = {filename, literate, bare: opts.bare, header: opts.compile, sourceMap: opts.map}
+  if filename
+    answer.jsPath = outputPath filename, base
+    answer.sourceRoot = file.relative answer.jsPath, '.'
+    answer.sourceFiles = [file.relative filename]
+    answer.generatedFile = helpers.baseFileName answer.jsPath
+  answer
 
 # Print the `--help` usage message and exit. Deprecated switches are not
 # shown.

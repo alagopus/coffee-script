@@ -1,7 +1,7 @@
 # The `coffee` utility. Handles command-line compilation of CoffeeScript
-# into various forms: saved into `.js` files or printed to stdout, piped to
-# [JavaScript Lint](http://javascriptlint.com/) or recompiled every time the source is
-# saved, printed as a token stream or as the syntax tree, or launch an
+# into various forms: saved into `.js` files or printed to stdout
+# or recompiled every time the source is saved,
+# printed as a token stream or as the syntax tree, or launch an
 # interactive REPL.
 
 # External dependencies.
@@ -33,12 +33,12 @@ SWITCHES = [
   ['-h', '--help',            'display this help message']
   ['-i', '--interactive',     'run an interactive CoffeeScript REPL']
   ['-j', '--join [FILE]',     'concatenate the source CoffeeScript before compiling']
-  ['-l', '--lint',            'pipe the compiled JavaScript through JavaScript Lint']
   ['-m', '--map',             'generate source map and save as .map files']
   ['-n', '--nodes',           'print out the parse tree that the parser produces']
   ['-o', '--output [DIR]',    'set the output directory for compiled JavaScript']
   ['-p', '--print',           'print out the compiled JavaScript']
   ['-s', '--stdio',           'listen for and compile scripts over stdio']
+  ['-l', '--literate',        'treat stdio as literate style coffee-script']
   ['-t', '--tokens',          'print out the tokens that the lexer/rewriter produce']
   ['-v', '--version',         'display the version number']
   ['-x', '--extension [ext]', 'use this extension for the JavaScript file instead of .js (must be used before e.g. -m flag)']
@@ -119,10 +119,8 @@ compileScript = (f, input, base) ->
 
       if o.print
         printLine t.output.trim()
-      else if o.compile || o.map
+      else if o.compile or o.map
         writeJs base, t.file, t.output, options.jsPath, t.sourceMap
-      else if o.lint
-        lint t.file, t.output
   catch err
     message = helpers.prettyErrorMessage err, file or '[stdin]', input
     printWarn message
@@ -179,17 +177,6 @@ wait = (milliseconds, func) -> setTimeout func, milliseconds
 timeLog = (message) ->
   console.log "#{(new Date).toLocaleTimeString()} - #{message}"
 
-# Pipe compiled JS through JSLint (requires a working `jsl` command), printing
-# any errors or warnings that arise.
-lint = (f, js) ->
-  printIt = (buffer) -> printLine f + ':\t' + buffer.toString().trim()
-  conf = __dirname + '/../../extras/jsl.conf'
-  jsl = os.popen "jsl -nologo -stdin -conf " + conf
-  jsl.stdout.on 'data', printIt
-  jsl.stderr.on 'data', printIt
-  jsl.stdin.write js
-  jsl.stdin.end()
-
 # Pretty-print a stream of tokens, sans location data.
 printTokens = (tokens) ->
   strings = for token in tokens
@@ -204,7 +191,7 @@ parseOptions = ->
   optionParser  = new optparse.OptionParser SWITCHES, BANNER
   o = opts      = optionParser.parse global.arguments
   o.compile     or=  !!o.output
-  o.run         = not (o.compile or o.print or o.lint or o.map)
+  o.run         = not (o.compile or o.print or o.map)
   o.print       = !!  (o.print or (o.eval or o.stdio and o.compile))
   sources       = o.arguments
   sourceCode[i] = null for source, i in sources
@@ -212,7 +199,7 @@ parseOptions = ->
 
 # The compile-time options to pass to the CoffeeScript compiler.
 compileOptions = (filename, base) ->
-  literate = file.extension(filename) is '.litcoffee'
+  literate = opts.literate or file.extension(filename) is '.litcoffee'
   answer = {filename, literate, bare: opts.bare, header: opts.compile, sourceMap: opts.map}
   if filename
     answer.jsPath = outputPath filename, base

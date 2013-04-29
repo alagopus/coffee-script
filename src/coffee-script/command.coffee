@@ -149,12 +149,13 @@ removeSource = (source, base) ->
   sourceCode.splice index, 1
 
 # Get the corresponding output JavaScript path for a source file.
-outputPath = (source, base='.', extension='.js') ->
+outputPath = (source, base, extension='.js') ->
   filename  = file.basename(source, file.extension(source)) + extension
   srcDir    = file.dirname source
   baseDir   = if base is '.' then srcDir else srcDir.substring base.length
   dir       = if opts.output then file.join opts.output, baseDir else srcDir
-  file.join dir, filename
+  filename = file.join dir, filename if dir
+  return filename
 
 # Write out a JavaScript source file with the compiled code. By default, files
 # are written out in `cwd` as `.js` files with the same name, but the output

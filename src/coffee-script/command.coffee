@@ -203,7 +203,7 @@ compileOptions = (filename, base) ->
   literate = opts.literate or file.extension(filename) is '.litcoffee'
   answer = {filename, literate, bare: opts.bare, header: opts.compile, sourceMap: opts.map}
   if filename
-    answer.jsPath = outputPath filename, base
+    answer.jsPath = outputPath filename, base, opts.extension
     answer.sourceRoot = file.relative answer.jsPath, '.'
     answer.sourceFiles = [file.relative filename]
     answer.generatedFile = helpers.baseFileName answer.jsPath

@@ -176,7 +176,8 @@ exports.Base = class Base
   # For this node and all descendents, set the location data to `locationData`
   # if the location data is not already set.
   updateLocationDataIfMissing: (locationData) ->
-    @locationData or= locationData
+    return this if @locationData
+    @locationData = locationData
 
     @eachChild (child) ->
       child.updateLocationDataIfMissing locationData
@@ -555,9 +556,9 @@ exports.Comment = class Comment extends Base
   makeReturn:      THIS
 
   compileNode: (o, level) ->
-    code = "/*#{multident @comment, @tab}#{if '\n' in @comment then "\n#{@tab}" else ''}*/\n"
+    code = "/*#{multident @comment, @tab}#{if '\n' in @comment then "\n#{@tab}" else ''}*/"
     code = o.indent + code if (level or o.level) is LEVEL_TOP
-    [@makeCode code]
+    [@makeCode("\n"), @makeCode(code)]
 
 #### Call
 
@@ -1837,6 +1838,7 @@ exports.For = class For extends While
     @pattern = @name instanceof Value
     @index.error 'indexes do not apply to range loops' if @range and @index
     @name.error 'cannot pattern match over range loops' if @range and @pattern
+    @index.error 'cannot use own with for-in' if @own and not @object
     @returns = false
 
   children: ['body', 'source', 'guard', 'step']
@@ -2005,6 +2007,7 @@ exports.If = class If extends Base
     else
       @isChain  = elseBody instanceof If
       @elseBody = @ensureBlock elseBody
+      @elseBody.updateLocationDataIfMissing elseBody.locationData
     this
 
   # The **If** only compiles into a statement if either of its bodies needs

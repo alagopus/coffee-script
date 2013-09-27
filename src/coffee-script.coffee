@@ -15,10 +15,20 @@ SourceMap     = require './sourcemap'
 # The current CoffeeScript version number.
 exports.VERSION = '1.6.3'
 
+binary = require.resolve '../../bin/coffee'
 fileExtensions = ['.coffee', '.litcoffee', '.coffee.md']
 
 # Expose helpers for testing.
 exports.helpers = helpers
+
+# Function wrapper to add source file information to SyntaxErrors thrown by the
+# lexer/parser/compiler.
+withPrettyErrors = (fn) ->
+  (code, options = {}) ->
+    try
+      fn.call @, code, options
+    catch err
+      throw helpers.updateSyntaxError err, code, options.filename
 
 # Compile CoffeeScript code to JavaScript, using the Coffee/Jison compiler.
 #
@@ -29,7 +39,7 @@ exports.helpers = helpers
 # in which case this returns a `{js, v3SourceMap, sourceMap}`
 # object, where sourceMap is a sourcemap.coffee#SourceMap object, handy for doing programatic
 # lookups.
-exports.compile = compile = (code, options = {}) ->
+exports.compile = compile = withPrettyErrors (code, options) ->
   {merge} = helpers
 
   if options.sourceMap
@@ -52,7 +62,10 @@ exports.compile = compile = (code, options = {}) ->
           {noReplace: true})
       newLines = helpers.count fragment.code, "\n"
       currentLine += newLines
-      currentColumn = fragment.code.length - (if newLines then fragment.code.lastIndexOf "\n" else 0)
+      if newLines
+        currentColumn = fragment.code.length - (fragment.code.lastIndexOf("\n") + 1)
+      else
+        currentColumn += fragment.code.length
 
     # Copy the code from each fragment into the final JavaScript.
     js += fragment.code
@@ -70,13 +83,13 @@ exports.compile = compile = (code, options = {}) ->
     js
 
 # Tokenize a string of CoffeeScript code, and return the array of tokens.
-exports.tokens = (code, options) ->
+exports.tokens = withPrettyErrors (code, options) ->
   lexer.tokenize code, options
 
 # Parse a string of CoffeeScript code or an array of lexed tokens, and
 # return the AST. You can then compile it by calling `.compile()` on the root,
 # or traverse it by using `.traverseChildren()` with a callback.
-exports.nodes = (source, options) ->
+exports.nodes = withPrettyErrors (source, options) ->
   if typeof source is 'string'
     parser.parse lexer.tokenize source, options
   else
@@ -150,9 +163,7 @@ compileFile = (filename, sourceMap) ->
     # As the filename and code of a dynamically loaded file will be different
     # from the original file compiled with CoffeeScript.run, add that
     # information to error so it can be pretty-printed later.
-    err.filename = filename
-    err.code = stripped
-    throw err
+    throw helpers.updateSyntaxError err, stripped, filename
 
   answer
 
@@ -195,7 +206,7 @@ if require.extensions
 if child_process
   {fork} = child_process
   child_process.fork = (path, args = [], options = {}) ->
-    execPath = if helpers.isCoffee(path) then 'coffee' else null
+    execPath = if helpers.isCoffee(path) then binary else null
     if not Array.isArray args
       args = []
       options = args or {}

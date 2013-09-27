@@ -10,6 +10,7 @@ path           = require 'path'
 helpers        = require './helpers'
 optparse       = require './optparse'
 CoffeeScript   = require './coffee-script'
+mkdirp         = require 'mkdirp'
 {spawn, exec}  = require 'child_process'
 {EventEmitter} = require 'events'
 
@@ -141,8 +142,7 @@ compileScript = (file, input, base=null) ->
   catch err
     CoffeeScript.emit 'failure', err, task
     return if CoffeeScript.listeners('failure').length
-    useColors = process.stdout.isTTY and not process.env.NODE_DISABLE_COLORS
-    message = helpers.prettyErrorMessage err, file or '[stdin]', input, useColors
+    message = err.stack or "#{err}"
     if o.watch
       printLine message + '\x07'
     else
@@ -284,7 +284,7 @@ writeJs = (base, sourcePath, js, jsPath, generatedSourceMap = null) ->
         if err
           printLine "Could not write source map: #{err.message}"
   exists jsDir, (itExists) ->
-    if itExists then compile() else exec "mkdir -p #{jsDir}", compile
+    if itExists then compile() else mkdirp jsDir, compile
 
 # Convenience for cleaner setTimeouts.
 wait = (milliseconds, func) -> setTimeout func, milliseconds
@@ -346,10 +346,11 @@ forkNode = ->
   nodeArgs = opts.nodejs.split /\s+/
   args     = process.argv[1..]
   args.splice args.indexOf('--nodejs'), 2
-  spawn process.execPath, nodeArgs.concat(args),
+  p = spawn process.execPath, nodeArgs.concat(args),
     cwd:        process.cwd()
     env:        process.env
     customFds:  [0, 1, 2]
+  p.on 'exit', (code) -> process.exit code
 
 # Print the `--help` usage message and exit. Deprecated switches are not
 # shown.
